@@ -1,51 +1,120 @@
 "use strict";
 
+const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 class DatePicker {
     constructor(id, callback) {
         this.id = id;
         this.callback = callback;
+        this.selected = null;
     }
     
     render(date) {
-        const monthNames = ["January", "February", "March", "April", "May", "June",
-                            "July", "August", "September", "October", "November", "December"];
-        const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        
-        const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const daysInMonth = new Date(date.getFullYear(), date.getMonth()+1, 0).getDate();
-        const startWeekday = firstDayOfMonth.getDay();
+        const year = date.getFullYear();
+        const month = date.getMonth();
 
-        const calendar = document.createElement('table');
-        calendar.setAttribute('class', "calendar");
-        
-        const top = document.createElement('tr');
-        const prev = document.createElement('td');
-        prev.textContent = "<";
-        top.append(prev);
-        const monthYear = document.createElement('td');
-        monthYear.textContent = monthNames[date.getMonth()] + " " + date.getFullYear();
-        top.append(monthYear);
-        const next = document.createElement('td');
-        next.textContent = ">";
-        top.append(next);
-        calendar.append(top);
-
-        const weekDays = document.createElement('tr');
-        for (const day of daysOfWeek) {
-            const cell = document.createElement('td');
-            cell.textContent = day + " ";
-            weekDays.append(cell);
-        }
-        calendar.append(weekDays);
-        
         const datepicker = document.getElementById(this.id);
+        datepicker.innerHTML = '';
+        datepicker.classList.add("datepicker");
+        
+        const calendar = document.createElement('div');
+        calendar.classList.add("calendar");
         datepicker.append(calendar);
+        
+        // 日历顶部：年月、前后月份导航
+        const header = document.createElement('div');
+        header.classList.add("header");
+        calendar.append(header);
+
+        const prevMonth = document.createElement('button');
+        prevMonth.classList.add("prevMonth");
+        prevMonth.textContent = "<";
+        prevMonth.addEventListener('click', () => {
+            this.render(new Date(year, month-1, 1));
+        });
+        header.append(prevMonth);
+        
+        const monthYear = document.createElement('div');
+        monthYear.classList.add("monthYear");
+        monthYear.textContent = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(date);
+        header.append(monthYear);
+        
+        const nextMonth = document.createElement('button');
+        nextMonth.classList.add("nextMonth");
+        nextMonth.textContent = ">";
+        nextMonth.addEventListener('click', () => {
+            this.render(new Date(year, month+1, 1));
+        });
+        header.append(nextMonth);
+
+        // 日历星期几抬头
+        const days = document.createElement('div');
+        days.classList.add("days"); 
+        calendar.append(days);
+
+        for (const day of daysOfWeek) {
+            const cell = document.createElement('div');
+            cell.textContent = day;
+            cell.classList.add("day");
+            days.append(cell);
+        }
+        
+        // 日历日期
+        const dates = document.createElement('div');
+        dates.classList.add("dates");
+        calendar.append(dates);
+
+        const firstDay= new Date(year, month, 1);
+        const daysInMonth = new Date(year, month+1, 0).getDate();
+        const startDay = firstDay.getDay();
+
+        // 上月日期
+        const daysInLastMonth = new Date(year, month, 0).getDate();
+        for (let i = daysInLastMonth-startDay+1; i <= daysInLastMonth; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add("otherDate");
+            cell.textContent = i;
+            dates.append(cell);
+        }
+        // 本月日期
+        for (let i = 1; i <= daysInMonth; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add("date");
+            if (i === date.getDate()) {
+                cell.classList.add("current");
+            }
+            cell.textContent = i;
+            cell.addEventListener('click', () => {
+                this.selectDate(new Date(year, month, i));
+                if (this.selected) {
+                    this.selected.classList.remove("selected");
+                }
+                cell.classList.add("selected");
+                this.selected = cell;
+            });
+            dates.append(cell);
+        }
+        // 下月日期
+        const startWeekdayNextMonth = (startDay+ daysInMonth) % 7;
+        if (startWeekdayNextMonth) {
+            for (let i = 1; i <= 7-startWeekdayNextMonth; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add("otherDate");
+                cell.textContent = i;
+                dates.append(cell);
+            }
+        }
+        
+        if (this.selected) {
+            this.selected.classList.remove("selected");
+            this.selected = null;
+        }
     }
     
     selectDate(date) {
         const obj = {
-            month: date.getMonth(),
-            day: date.getDay(),
+            month: date.getMonth()+1,
+            day: date.getDate(),
             year: date.getFullYear()
         };
         this.callback(this.id, obj);
