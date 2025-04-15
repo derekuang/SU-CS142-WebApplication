@@ -6,26 +6,38 @@ class DatePicker {
     constructor(id, callback) {
         this.id = id;
         this.callback = callback;
+        this.datepicker = null;
+        this.calendar = null;
         this.selected = null;
     }
     
     render(date) {
+        this.datepicker = document.getElementById(this.id);
+        this.datepicker.innerHTML = '';
+        this.datepicker.classList.add("datepicker");
+        
+        this.calendar = document.createElement('div');
+        this.calendar.classList.add("calendar");
+        this.datepicker.append(this.calendar);
+        
+        this.render_header(date);
+        this.render_days();
+        this.render_dates(date);
+        
+        if (this.selected) {
+            this.selected.classList.remove("selected");
+            this.selected = null;
+        }
+    }
+    
+    // 日历顶部：年月、前后月份导航
+    render_header(date) {
         const year = date.getFullYear();
         const month = date.getMonth();
 
-        const datepicker = document.getElementById(this.id);
-        datepicker.innerHTML = '';
-        datepicker.classList.add("datepicker");
-        
-        const calendar = document.createElement('div');
-        calendar.classList.add("calendar");
-        datepicker.append(calendar);
-        
-        // 日历顶部：年月、前后月份导航
         const header = document.createElement('div');
         header.classList.add("header");
-        calendar.append(header);
-
+        
         const prevMonth = document.createElement('button');
         prevMonth.classList.add("prevMonth");
         prevMonth.textContent = "<";
@@ -33,12 +45,12 @@ class DatePicker {
             this.render(new Date(year, month-1, 1));
         });
         header.append(prevMonth);
-        
+
         const monthYear = document.createElement('div');
         monthYear.classList.add("monthYear");
         monthYear.textContent = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(date);
         header.append(monthYear);
-        
+
         const nextMonth = document.createElement('button');
         nextMonth.classList.add("nextMonth");
         nextMonth.textContent = ">";
@@ -47,10 +59,13 @@ class DatePicker {
         });
         header.append(nextMonth);
 
-        // 日历星期几抬头
+        this.calendar.append(header);
+    }
+
+    // 日历星期几抬头
+    render_days() {
         const days = document.createElement('div');
         days.classList.add("days"); 
-        calendar.append(days);
 
         for (const day of daysOfWeek) {
             const cell = document.createElement('div');
@@ -59,10 +74,16 @@ class DatePicker {
             days.append(cell);
         }
         
-        // 日历日期
+        this.calendar.append(days);
+    }
+
+    // 日历日期
+    render_dates(date) {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+
         const dates = document.createElement('div');
         dates.classList.add("dates");
-        calendar.append(dates);
 
         const firstDay= new Date(year, month, 1);
         const daysInMonth = new Date(year, month+1, 0).getDate();
@@ -104,13 +125,10 @@ class DatePicker {
                 dates.append(cell);
             }
         }
-        
-        if (this.selected) {
-            this.selected.classList.remove("selected");
-            this.selected = null;
-        }
+
+        this.calendar.append(dates);
     }
-    
+
     selectDate(date) {
         const obj = {
             month: date.getMonth()+1,
