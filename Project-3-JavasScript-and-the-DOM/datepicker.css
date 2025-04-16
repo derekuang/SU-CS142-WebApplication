@@ -39,15 +39,13 @@
     padding: 10px 0;
 }
 
-.days .day {
+.day {
     text-align: center;
 }
 
 .dates {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-    padding: 10px;
 }
 
 .dates > * {
@@ -61,11 +59,11 @@
     color: dimgray;
 }
 
-.dates .date:hover {
+.date:hover {
     background-color: #f0f0f0;
 }
 
-.dates .date.current {
+.today {
     background-color: #4caf50;
     color: white;
 }
