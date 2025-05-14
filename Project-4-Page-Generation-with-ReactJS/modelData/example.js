@@ -1,5 +1,3 @@
-"use strict";
-
 /*
  * Load the model data for CS142 Project 4, Problem 1. We load into DOM the
  * property cs142models.exampleModel a function that returns an object with the
