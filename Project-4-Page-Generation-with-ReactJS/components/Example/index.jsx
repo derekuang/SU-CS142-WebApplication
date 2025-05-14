@@ -103,7 +103,7 @@ class Example extends React.Component {
         <h1>CS142 Project 4 React.js Example</h1>
 
         <div className="motto-update">
-          {/* Your Problem 1 motto displaying and updating widget goes here */}
+          {window.cs142models.exampleModel().motto}
         </div>
 
         <p>
@@ -254,7 +254,7 @@ class Example extends React.Component {
         <pre className="cs142-example-code">
           <code className="language-jsx">
             {`<div>
-  option ? <div>Option was True</div> : <div>Option was False</div> }
+  { option ? <div>Option was True</div> : <div>Option was False</div> }
   <ul>
     {[0,1,2].map((i) =>  <li key={i}>List Item {i}</li>)}
   </ul>

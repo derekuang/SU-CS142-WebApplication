@@ -33,3 +33,10 @@
 .cs142-code-name {
   font-family: Courier New, monospace;
 }
+
+.motto-update {
+  font-size: 20px;
+  font-weight: bold;
+  font-style: italic;
+  color: red;
+}
