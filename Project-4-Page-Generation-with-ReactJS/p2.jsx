@@ -1,6 +1,7 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import ReactDOM from "react-dom/client";
 
 import States from "./components/States";
 
-ReactDOM.render(<States />, document.getElementById("reactapp"));
+const root = ReactDOM.createRoot(document.getElementById("reactapp"));
+root.render(<States />);

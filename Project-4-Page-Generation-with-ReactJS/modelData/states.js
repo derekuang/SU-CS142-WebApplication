@@ -1,5 +1,3 @@
-"use strict";
-
 /*
  * Load the model data for CS142 Project 4, Problem 2. We load into the property
  * cs142models.statesModel a function that returns an array of strings with the
