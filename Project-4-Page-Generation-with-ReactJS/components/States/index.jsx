@@ -9,14 +9,50 @@ import "./styles.css";
 class States extends React.Component {
   constructor(props) {
     super(props);
-    console.log(
-      "window.cs142models.statesModel()",
-      window.cs142models.statesModel()
+
+    this.state = {
+      names: window.cs142models.statesModel().sort(),
+      substr: "",
+    };
+
+    this.handleChangeBound = (e) => this.handleChange(e);
+  }
+
+  handleChange(event) {
+    this.setState({ substr: event.target.value });
+  }
+
+  stateList() {
+    const filterList = this.state.names
+          .filter((name) => name.toLowerCase().includes(this.state.substr.toLowerCase()));
+    const filterResult = (
+      <ul>
+        {filterList.map((name) => (<li key={name}> {name} </li>))}
+      </ul>
+    );
+    const emptyNotice = <p>No State matched!</p>;
+
+    return (
+      filterList.length ? filterResult : emptyNotice
     );
   }
 
   render() {
-    return <div>Replace this with the code for CS142 Project 4, Problem 2</div>;
+    return (
+      <>
+        <div>
+          <label htmlFor="inId">Input Field:</label>
+          <input
+            id="inId"
+            type="text"
+            value={this.state.substr}
+            onChange={this.handleChangeBound}
+          />
+        </div>
+        {this.state.substr && <p>Filter substring: {this.state.substr}</p>}
+        {this.stateList()}
+      </>
+    );
   }
 }
 
