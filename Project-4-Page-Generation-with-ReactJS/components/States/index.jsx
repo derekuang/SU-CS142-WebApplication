@@ -14,23 +14,38 @@ class States extends React.Component {
       names: window.cs142models.statesModel().sort(),
       substr: "",
     };
-
-    this.handleChangeBound = (e) => this.handleChange(e);
   }
 
-  handleChange(event) {
+  handleChange = (event) => {
     this.setState({ substr: event.target.value });
+  };
+
+  inputField() {
+    return (
+      <div className="cs142-states-input-container">
+        <label className="cs142-states-input-label" htmlFor="inId">Input Field:</label>
+        <input
+          className="cs142-states-input-field"
+          id="inId"
+          type="text"
+          value={this.state.substr}
+          onChange={this.handleChange}
+        />
+      </div>
+    );
   }
 
   stateList() {
     const filterList = this.state.names
-          .filter((name) => name.toLowerCase().includes(this.state.substr.toLowerCase()));
+      .filter((name) => name.toLowerCase().includes(this.state.substr.toLowerCase()));
     const filterResult = (
-      <ul>
-        {filterList.map((name) => (<li key={name}> {name} </li>))}
+      <ul className="cs142-states-list">
+        {filterList.map((name) => (
+          <li className="cs142-states-list-item" key={name}>{name}</li>
+        ))}
       </ul>
     );
-    const emptyNotice = <p>No State matched!</p>;
+    const emptyNotice = <p className="cs142-states-empty-notice">No State matched!</p>;
 
     return (
       filterList.length ? filterResult : emptyNotice
@@ -39,19 +54,11 @@ class States extends React.Component {
 
   render() {
     return (
-      <>
-        <div>
-          <label htmlFor="inId">Input Field:</label>
-          <input
-            id="inId"
-            type="text"
-            value={this.state.substr}
-            onChange={this.handleChangeBound}
-          />
-        </div>
-        {this.state.substr && <p>Filter substring: {this.state.substr}</p>}
+      <div className="states">
+        {this.inputField()}
+        {this.state.substr && <p className="cs142-states-filter-text">Filter substring: {this.state.substr}</p>}
         {this.stateList()}
-      </>
+      </div>
     );
   }
 }
