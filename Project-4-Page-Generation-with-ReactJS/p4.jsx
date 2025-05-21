@@ -6,25 +6,35 @@ import Example from "./components/Example";
 import States from "./components/States";
 
 const OPTIONS = {
-  example: <Example />,
-  states: <States />
+  example: {
+    key: "example",
+    component: <Example />
+  },
+  states: {
+    key: "states",
+    component: <States />
+  }
 };
+
+function getNextView(view) {
+  return view === OPTIONS.example ? OPTIONS.states : OPTIONS.example;
+}
 
 function App(props) {
   const [view, setView] = useState(props.view);
-  let otherView = view === OPTIONS.example ? OPTIONS.states : OPTIONS.example;
+  let nextView = getNextView(view);
 
   function switchView() {
-    setView(otherView);
-    otherView = view === OPTIONS.example ? OPTIONS.states : OPTIONS.example;
+    setView(nextView);
+    nextView = getNextView(view);
   }
 
   return (
     <>
       <button onClick={() => switchView()}>
-        Switch to {view === OPTIONS.example ? "States" : "Example"}
+        Switch to {nextView.key}
       </button>
-      {view};
+      {view.component};
     </>
   );
 }
