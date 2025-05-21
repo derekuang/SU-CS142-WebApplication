@@ -5,7 +5,7 @@ import Header from "./components/Header";
 import Example from "./components/Example";
 import States from "./components/States";
 
-const OPTIONS = {
+const VIEWS = {
   example: {
     key: "example",
     component: <Example />
@@ -17,24 +17,19 @@ const OPTIONS = {
 };
 
 function getNextView(view) {
-  return view === OPTIONS.example ? OPTIONS.states : OPTIONS.example;
+  return view === VIEWS.example ? VIEWS.states : VIEWS.example;
 }
 
 function App(props) {
   const [view, setView] = useState(props.view);
-  let nextView = getNextView(view);
-
-  function switchView() {
-    setView(nextView);
-    nextView = getNextView(view);
-  }
+  const nextView = getNextView(view);
 
   return (
     <>
-      <button onClick={() => switchView()}>
+      <button onClick={() => setView(preView => getNextView(preView))}>
         Switch to {nextView.key}
       </button>
-      {view.component};
+      {view.component}
     </>
   );
 }
@@ -43,6 +38,6 @@ const root = ReactDOM.createRoot(document.getElementById("reactapp"));
 root.render(
   <StrictMode>
     <Header />
-    <App view={OPTIONS.example} />
+    <App view={VIEWS.example} />
   </StrictMode>
 );
