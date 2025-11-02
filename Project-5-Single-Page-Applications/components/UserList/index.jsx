@@ -1,5 +1,11 @@
 import React from "react";
-import { Divider, List, ListItem, ListItemText } from "@mui/material";
+import {
+  Divider,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+} from "@mui/material";
 
 import "./styles.css";
 
@@ -21,10 +27,12 @@ class UserList extends React.Component {
           {this.state.users.map((user) => {
             return (
               <>
-                <ListItem key={user._id}>
-                  <ListItemText
-                    primary={user.first_name + " " + user.last_name}
-                  />
+                <ListItem key={user._id} disablePadding>
+                  <ListItemButton>
+                    <ListItemText
+                      primary={user.first_name + " " + user.last_name}
+                    />
+                  </ListItemButton>
                 </ListItem>
                 <Divider />
               </>
