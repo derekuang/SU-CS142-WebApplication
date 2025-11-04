@@ -23,12 +23,12 @@ class PhotoShare extends React.Component {
               <TopBar />
             </Grid>
             <div className="cs142-main-topbar-buffer" />
-            <Grid item sm={3}>
+            <Grid item xs={12} sm={3}>
               <Paper className="cs142-main-grid-item">
                 <UserList />
               </Paper>
             </Grid>
-            <Grid item sm={9}>
+            <Grid item xs={12} sm={9}>
               <Paper className="cs142-main-grid-item">
                 <Switch>
                   <Route

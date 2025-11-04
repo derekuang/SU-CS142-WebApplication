@@ -1,5 +1,6 @@
 import React from "react";
-import { Typography } from "@mui/material";
+import { Link } from "react-router-dom";
+import { Button, Stack, Divider, Typography } from "@mui/material";
 
 import "./styles.css";
 
@@ -9,17 +10,37 @@ import "./styles.css";
 class UserDetail extends React.Component {
   constructor(props) {
     super(props);
+    this.state = { userId: props.match.params.userId };
+  }
+
+  componentDidUpdate() {
+    if (this.props.match.params.userId !== this.state.userId) {
+      this.setState({ userId: this.props.match.params.userId });
+    }
   }
 
   render() {
+    const user = window.cs142models.userModel(this.state.userId);
+
     return (
-      <Typography variant="body1">
-        This should be the UserDetail view of the PhotoShare app. Since it is
-        invoked from React Router the params from the route will be in property
-        match. So this should show details of user:
-        {this.props.match.params.userId}. You can fetch the model for the user
-        from window.cs142models.userModel(userId).
-      </Typography>
+      <Stack
+        divider={<Divider sx={{ width: "90%" }} />}
+        alignItems="center"
+        spacing={2}
+      >
+        <Typography variant="h3">
+          {`${user.first_name} ${user.last_name}`}
+        </Typography>
+        <Typography variant="h5">Occupation: {user.occupation}</Typography>
+        <Typography variant="h5">Location: {user.location}</Typography>
+        {/* <Typography variant="body1">{user.description}</Typography>*/}
+        <Typography variant="body1">
+          Quote: <span dangerouslySetInnerHTML={{ __html: user.description }} />
+        </Typography>
+        <Button variant="outlined">
+          <Link to={`/photos/${user._id}`}>Photos</Link>
+        </Button>
+      </Stack>
     );
   }
 }
