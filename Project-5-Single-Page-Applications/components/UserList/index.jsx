@@ -1,6 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { Divider, List, ListItem, ListItemText } from "@mui/material";
+import { Divider, Link, List, ListItem, ListItemText } from "@mui/material";
 
 import "./styles.css";
 
@@ -21,7 +20,7 @@ class UserList extends React.Component {
         <List component="nav">
           {this.state.users.map((user) => {
             return (
-              <Link to={`/users/${user._id}`} key={user._id}>
+              <Link href={`#/users/${user._id}`} key={user._id}>
                 <ListItem>
                   <ListItemText
                     primary={`${user.first_name} ${user.last_name}`}

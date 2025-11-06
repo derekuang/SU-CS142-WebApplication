@@ -1,6 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import { Button, Stack, Divider, Typography } from "@mui/material";
+import { Button, Stack, Divider, Link, Typography } from "@mui/material";
 
 import "./styles.css";
 
@@ -38,7 +37,7 @@ class UserDetail extends React.Component {
           Quote: <span dangerouslySetInnerHTML={{ __html: user.description }} />
         </Typography>
         <Button variant="outlined">
-          <Link to={`/photos/${user._id}`}>Photos</Link>
+          <Link href={`#/photos/${user._id}`}>Photos</Link>
         </Button>
       </Stack>
     );
