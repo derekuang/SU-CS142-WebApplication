@@ -12,7 +12,14 @@ import UserPhotos from "./components/UserPhotos";
 class PhotoShare extends React.Component {
   constructor(props) {
     super(props);
+    this.state = {
+      content: "Home",
+    };
   }
+
+  changeContent = (newContext, name) => {
+    this.setState({ content: newContext + (name && name) });
+  };
 
   render() {
     return (
@@ -20,7 +27,7 @@ class PhotoShare extends React.Component {
         <div>
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <TopBar />
+              <TopBar content={this.state.content} />
             </Grid>
             <div className="cs142-main-topbar-buffer" />
             <Grid item xs={12} sm={3}>
@@ -33,11 +40,21 @@ class PhotoShare extends React.Component {
                 <Switch>
                   <Route
                     path="/users/:userId"
-                    render={(props) => <UserDetail {...props} />}
+                    render={(props) => (
+                      <UserDetail
+                        {...props}
+                        changeContent={this.changeContent}
+                      />
+                    )}
                   />
                   <Route
                     path="/photos/:userId"
-                    render={(props) => <UserPhotos {...props} />}
+                    render={(props) => (
+                      <UserPhotos
+                        {...props}
+                        changeContent={this.changeContent}
+                      />
+                    )}
                   />
                   <Route path="/users" component={UserList} />
                 </Switch>

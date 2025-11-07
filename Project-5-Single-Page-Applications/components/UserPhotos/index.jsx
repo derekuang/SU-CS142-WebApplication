@@ -7,8 +7,15 @@ import {
   Link,
   Typography,
 } from "@mui/material";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 import "./styles.css";
+
+function humanize(dateTime) {
+  dayjs.extend(relativeTime);
+  return dayjs().to(dayjs(dateTime));
+}
 
 /**
  * Define UserPhotos, a React component of CS142 Project 5.
@@ -16,14 +23,28 @@ import "./styles.css";
 class UserPhotos extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { userId: this.props.match.params.userId };
+    this.state = { userId: props.match.params.userId };
+  }
+
+  componentDidMount() {
+    this.changeContent(this.state.userId);
   }
 
   componentDidUpdate() {
-    if (this.props.match.params.userId !== this.state.userId) {
-      this.setState({ userId: this.props.match.params.userId });
+    const userId = this.props.match.params.userId;
+    if (userId !== this.state.userId) {
+      this.setState({ userId: userId });
+      this.changeContent(userId);
     }
   }
+
+  changeContent = (userId) => {
+    const user = window.cs142models.userModel(userId);
+    this.props.changeContent(
+      "Photos of ",
+      `${user.first_name} ${user.last_name}`,
+    );
+  };
 
   render() {
     const photos = window.cs142models.photoOfUserModel(this.state.userId);
@@ -40,7 +61,7 @@ class UserPhotos extends React.Component {
                 />
                 <ImageListItemBar
                   position="bottom"
-                  subtitle={`Date: ${photo.date_time}`}
+                  subtitle={humanize(photo.date_time)}
                 />
               </ImageListItem>
               <Box padding={"8px 16px"}>
@@ -50,7 +71,7 @@ class UserPhotos extends React.Component {
                       <Link href={`#/users/${comment.user._id}`}>
                         {`${comment.user.first_name} ${comment.user.last_name}`}
                       </Link>
-                      {`(${comment.date_time}): ${comment.comment}`}
+                      {`(${humanize(comment.date_time)}): ${comment.comment}`}
                     </Typography>
                   ))}
               </Box>

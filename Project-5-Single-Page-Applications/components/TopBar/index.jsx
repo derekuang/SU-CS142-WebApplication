@@ -1,5 +1,6 @@
 import React from "react";
-import { AppBar, Toolbar, Typography } from "@mui/material";
+import { withRouter } from "react-router-dom";
+import { AppBar, Box, Toolbar, Typography } from "@mui/material";
 
 import "./styles.css";
 
@@ -9,19 +10,31 @@ import "./styles.css";
 class TopBar extends React.Component {
   constructor(props) {
     super(props);
+    this.state = { route: props.location.pathname };
+  }
+
+  componentDidUpdate() {
+    if (this.props.location.pathname !== this.state.route) {
+      this.setState({ route: this.props.location.pathname });
+    }
   }
 
   render() {
     return (
       <AppBar className="cs142-topbar-appBar" position="absolute">
         <Toolbar>
-          <Typography variant="h5" color="inherit">
-            This is the TopBar component
-          </Typography>
+          <Box width="100%" display="flex" justifyContent="space-between">
+            <Typography variant="h5" color="inherit">
+              Derekuang
+            </Typography>
+            <Typography variant="h5" color="inherit">
+              {this.props.content}
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
     );
   }
 }
 
-export default TopBar;
+export default withRouter(TopBar);

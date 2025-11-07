@@ -12,11 +12,22 @@ class UserDetail extends React.Component {
     this.state = { userId: props.match.params.userId };
   }
 
+  componentDidMount() {
+    this.changeContent(this.state.userId);
+  }
+
   componentDidUpdate() {
-    if (this.props.match.params.userId !== this.state.userId) {
-      this.setState({ userId: this.props.match.params.userId });
+    const userId = this.props.match.params.userId;
+    if (userId !== this.state.userId) {
+      this.setState({ userId: userId });
+      this.changeContent(userId);
     }
   }
+
+  changeContent = (userId) => {
+    const user = window.cs142models.userModel(userId);
+    this.props.changeContent("", `${user.first_name} ${user.last_name}`);
+  };
 
   render() {
     const user = window.cs142models.userModel(this.state.userId);
