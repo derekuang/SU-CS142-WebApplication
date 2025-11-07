@@ -43,8 +43,8 @@ class UserDetail extends React.Component {
         </Typography>
         <Typography variant="h5">Occupation: {user.occupation}</Typography>
         <Typography variant="h5">Location: {user.location}</Typography>
-        {/* <Typography variant="body1">{user.description}</Typography>*/}
         <Typography variant="body1">
+          {/* eslint-disable-next-line react/no-danger */}
           Quote: <span dangerouslySetInnerHTML={{ __html: user.description }} />
         </Typography>
         <Button variant="outlined">
