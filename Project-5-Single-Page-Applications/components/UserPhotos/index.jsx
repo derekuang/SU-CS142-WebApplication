@@ -49,11 +49,11 @@ class UserPhotos extends React.Component {
   render() {
     const photos = window.cs142models.photoOfUserModel(this.state.userId);
     return (
-      <ImageList variant="masonry" cols={2} gap={8}>
+      <ImageList variant="masonry" cols={1} gap={8}>
         {photos.map((photo) => {
           return (
-            <>
-              <ImageListItem key={photo._id}>
+            <Box key={photo._id}>
+              <ImageListItem>
                 <img
                   src={`images/${photo.file_name}`}
                   alt={photo.file_name}
@@ -75,7 +75,7 @@ class UserPhotos extends React.Component {
                     </Typography>
                   ))}
               </Box>
-            </>
+            </Box>
           );
         })}
       </ImageList>
