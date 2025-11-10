@@ -3,6 +3,7 @@ import { withRouter } from "react-router-dom";
 import { AppBar, Box, Toolbar, Typography } from "@mui/material";
 
 import "./styles.css";
+import fetchModel from "../../lib/fetchModelData";
 
 /**
  * Define TopBar, a React component of CS142 Project 5.
@@ -11,6 +12,11 @@ class TopBar extends React.Component {
   constructor(props) {
     super(props);
     this.state = { route: props.location.pathname };
+
+    const promise = fetchModel("/test/info");
+    promise.then((response) => {
+      this.setState({ version: response.data.__v });
+    });
   }
 
   componentDidUpdate() {
@@ -25,7 +31,7 @@ class TopBar extends React.Component {
         <Toolbar>
           <Box width="100%" display="flex" justifyContent="space-between">
             <Typography variant="h5" color="inherit">
-              Derekuang
+              Derekuang v{this.state.version}
             </Typography>
             <Typography variant="h5" color="inherit">
               {this.props.content}

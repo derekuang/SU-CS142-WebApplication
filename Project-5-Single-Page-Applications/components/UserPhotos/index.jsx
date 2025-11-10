@@ -11,6 +11,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import "./styles.css";
+import fetchModel from "../../lib/fetchModelData";
 
 function humanize(dateTime) {
   dayjs.extend(relativeTime);
@@ -23,31 +24,35 @@ function humanize(dateTime) {
 class UserPhotos extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { userId: props.match.params.userId };
-  }
+    this.state = {};
 
-  componentDidMount() {
-    this.changeContent(this.state.userId);
+    const userId = props.match.params.userId;
+    const promise1 = fetchModel(`/user/${userId}`);
+    const promise2 = fetchModel(`/photosOfUser/${userId}`);
+    Promise.all([promise1, promise2]).then((values) => {
+      this.setState({ user: values[0].data, photos: values[1].data });
+    });
   }
 
   componentDidUpdate() {
     const userId = this.props.match.params.userId;
-    if (userId !== this.state.userId) {
-      this.setState({ userId: userId });
-      this.changeContent(userId);
+    if (userId === this.state.user?._id) {
+      return;
     }
-  }
-
-  changeContent = (userId) => {
-    const user = window.cs142models.userModel(userId);
+    const user = this.state.user;
     this.props.changeContent(
       "Photos of ",
       `${user.first_name} ${user.last_name}`,
     );
-  };
+  }
 
   render() {
-    const photos = window.cs142models.photoOfUserModel(this.state.userId);
+    const photos = this.state.photos;
+
+    if (!photos) {
+      return <Box></Box>;
+    }
+
     return (
       <ImageList variant="masonry" cols={1} gap={8}>
         {photos.map((photo) => {

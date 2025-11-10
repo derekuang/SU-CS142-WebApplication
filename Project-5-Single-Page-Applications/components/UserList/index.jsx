@@ -1,7 +1,15 @@
 import React from "react";
-import { Divider, Link, List, ListItem, ListItemText } from "@mui/material";
+import {
+  Box,
+  Divider,
+  Link,
+  List,
+  ListItem,
+  ListItemText,
+} from "@mui/material";
 
 import "./styles.css";
+import fetchModel from "../../lib/fetchModelData";
 
 /**
  * Define UserList, a React component of CS142 Project 5.
@@ -9,12 +17,19 @@ import "./styles.css";
 class UserList extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
-      users: window.cs142models.userListModel(),
-    };
+    this.state = {};
+    fetchModel("/user/list").then((response) => {
+      this.setState({ users: response.data });
+    });
   }
 
   render() {
+    const users = this.state.users;
+
+    if (!users) {
+      return <Box></Box>;
+    }
+
     return (
       <div>
         <List component="nav">
