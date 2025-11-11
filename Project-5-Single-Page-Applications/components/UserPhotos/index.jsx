@@ -50,7 +50,7 @@ class UserPhotos extends React.Component {
     const photos = this.state.photos;
 
     if (!photos) {
-      return <Box></Box>;
+      return <Box>Loading...</Box>;
     }
 
     return (

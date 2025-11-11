@@ -27,7 +27,7 @@ class UserList extends React.Component {
     const users = this.state.users;
 
     if (!users) {
-      return <Box></Box>;
+      return <Box>Loading...</Box>;
     }
 
     return (

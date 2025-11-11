@@ -36,7 +36,7 @@ class UserDetail extends React.Component {
     const { user } = this.state;
 
     if (!user) {
-      return <Box></Box>;
+      return <Box>Loading...</Box>;
     }
 
     return (
