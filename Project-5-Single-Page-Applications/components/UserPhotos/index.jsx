@@ -54,36 +54,42 @@ class UserPhotos extends React.Component {
     }
 
     return (
-      <ImageList variant="masonry" cols={1} gap={8}>
-        {photos.map((photo) => {
-          return (
-            <Box key={photo._id}>
-              <ImageListItem>
-                <img
-                  src={`images/${photo.file_name}`}
-                  alt={photo.file_name}
-                  loading="lazy"
-                />
-                <ImageListItemBar
-                  position="bottom"
-                  subtitle={humanize(photo.date_time)}
-                />
-              </ImageListItem>
-              <Box padding={"8px 16px"}>
-                {photo.comments &&
-                  photo.comments.map((comment) => (
-                    <Typography key={comment._id} variant="body2" gutterBottom>
-                      <Link href={`#/users/${comment.user._id}`}>
-                        {`${comment.user.first_name} ${comment.user.last_name}`}
-                      </Link>
-                      {`(${humanize(comment.date_time)}): ${comment.comment}`}
-                    </Typography>
-                  ))}
+      <Box sx={{ maxHeight: "calc(100% - 20px)", overflowY: "auto" }}>
+        <ImageList variant="masonry" cols={1} gap={8}>
+          {photos.map((photo) => {
+            return (
+              <Box key={photo._id}>
+                <ImageListItem>
+                  <img
+                    src={`images/${photo.file_name}`}
+                    alt={photo.file_name}
+                    loading="lazy"
+                  />
+                  <ImageListItemBar
+                    position="bottom"
+                    subtitle={humanize(photo.date_time)}
+                  />
+                </ImageListItem>
+                <Box padding={"8px 16px"}>
+                  {photo.comments &&
+                    photo.comments.map((comment) => (
+                      <Typography
+                        key={comment._id}
+                        variant="body2"
+                        gutterBottom
+                      >
+                        <Link href={`#/users/${comment.user._id}`}>
+                          {`${comment.user.first_name} ${comment.user.last_name}`}
+                        </Link>
+                        {`(${humanize(comment.date_time)}): ${comment.comment}`}
+                      </Typography>
+                    ))}
+                </Box>
               </Box>
-            </Box>
-          );
-        })}
-      </ImageList>
+            );
+          })}
+        </ImageList>
+      </Box>
     );
   }
 }
