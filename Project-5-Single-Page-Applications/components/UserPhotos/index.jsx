@@ -1,10 +1,16 @@
 import React from "react";
 import {
   Box,
-  ImageList,
-  ImageListItem,
-  ImageListItemBar,
+  Card,
+  CardContent,
+  CardMedia,
+  Chip,
+  Divider,
+  Grid,
   Link,
+  List,
+  ListItem,
+  ListItemText,
   Typography,
 } from "@mui/material";
 import dayjs from "dayjs";
@@ -30,20 +36,14 @@ class UserPhotos extends React.Component {
     const promise1 = fetchModel(`/user/${userId}`);
     const promise2 = fetchModel(`/photosOfUser/${userId}`);
     Promise.all([promise1, promise2]).then((values) => {
-      this.setState({ user: values[0].data, photos: values[1].data });
+      const user = values[0].data;
+      const photos = values[1].data;
+      this.setState({ photos });
+      this.props.changeContent(
+        "Photos of ",
+        `${user.first_name} ${user.last_name}`,
+      );
     });
-  }
-
-  componentDidUpdate() {
-    const userId = this.props.match.params.userId;
-    if (userId === this.state.user?._id) {
-      return;
-    }
-    const user = this.state.user;
-    this.props.changeContent(
-      "Photos of ",
-      `${user.first_name} ${user.last_name}`,
-    );
   }
 
   render() {
@@ -54,42 +54,87 @@ class UserPhotos extends React.Component {
     }
 
     return (
-      <Box sx={{ maxHeight: "calc(100% - 20px)", overflowY: "auto" }}>
-        <ImageList variant="masonry" cols={1} gap={8}>
-          {photos.map((photo) => {
-            return (
-              <Box key={photo._id}>
-                <ImageListItem>
-                  <img
-                    src={`images/${photo.file_name}`}
-                    alt={photo.file_name}
-                    loading="lazy"
+      <Grid container spacing={2}>
+        {photos.map((photo) => {
+          return (
+            <Grid item xs={12} sm={6} md={4} key={photo._id}>
+              <Card sx={{ height: { xs: 300, md: 400 }, overflowY: "auto" }}>
+                <CardMedia
+                  component="img"
+                  alt={photo.file_name}
+                  src={`images/${photo.file_name}`}
+                  sx={{ height: { xs: 200, md: 280 } }}
+                />
+                <CardContent variant="body2">
+                  <Chip
+                    label={humanize(photo.date_time)}
+                    color="primary"
+                    variant="outlined"
                   />
-                  <ImageListItemBar
-                    position="bottom"
-                    subtitle={humanize(photo.date_time)}
-                  />
-                </ImageListItem>
-                <Box padding={"8px 16px"}>
-                  {photo.comments &&
-                    photo.comments.map((comment) => (
-                      <Typography
-                        key={comment._id}
-                        variant="body2"
-                        gutterBottom
-                      >
-                        <Link href={`#/users/${comment.user._id}`}>
-                          {`${comment.user.first_name} ${comment.user.last_name}`}
-                        </Link>
-                        {`(${humanize(comment.date_time)}): ${comment.comment}`}
-                      </Typography>
-                    ))}
-                </Box>
-              </Box>
-            );
-          })}
-        </ImageList>
-      </Box>
+                  {photo.comments && photo.comments.length > 0 ? (
+                    <List dense>
+                      {photo.comments.map((comment) => {
+                        return (
+                          <React.Fragment key={comment._id}>
+                            <ListItem>
+                              <ListItemText
+                                primary={
+                                  // eslint-disable-next-line react/jsx-wrap-multilines
+                                  <Box>
+                                    <Link
+                                      href={`#/users/${comment.user._id}`}
+                                      color="inherit"
+                                      underline="hover"
+                                      sx={{ fontWeight: "bold" }}
+                                    >
+                                      {`${comment.user.first_name} ${comment.user.last_name}`}
+                                    </Link>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ ml: 1 }}
+                                    >
+                                      {humanize(comment.date_time)}
+                                    </Typography>
+                                  </Box>
+                                }
+                                secondary={
+                                  // eslint-disable-next-line react/jsx-wrap-multilines
+                                  <Typography
+                                    variant="body2"
+                                    color="text.primary"
+                                    sx={{ mt: 1 }}
+                                  >
+                                    <span
+                                      // eslint-disable-next-line react/no-danger
+                                      dangerouslySetInnerHTML={{
+                                        __html: comment.comment,
+                                      }}
+                                    />
+                                  </Typography>
+                                }
+                              />
+                            </ListItem>
+                            <Divider />
+                          </React.Fragment>
+                        );
+                      })}
+                    </List>
+                  ) : (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 2 }}
+                    >
+                      No comments yet
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
     );
   }
 }
