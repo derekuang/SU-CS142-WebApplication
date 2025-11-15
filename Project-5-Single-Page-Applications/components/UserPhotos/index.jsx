@@ -6,13 +6,13 @@ import {
   CardMedia,
   Chip,
   Divider,
-  Grid,
   Link,
   List,
   ListItem,
   ListItemText,
   Typography,
 } from "@mui/material";
+import Grid from "@mui/material/Unstable_Grid2";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -54,7 +54,7 @@ class UserPhotos extends React.Component {
     }
 
     return (
-      <Grid container spacing={2}>
+      <Grid container spacing={2} sx={{ height: "100%", overflowY: "auto" }}>
         {photos.map((photo) => {
           return (
             <Grid item xs={12} sm={6} md={4} key={photo._id}>
