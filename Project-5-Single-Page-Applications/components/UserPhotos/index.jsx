@@ -24,6 +24,60 @@ function humanize(dateTime) {
   return dayjs().to(dayjs(dateTime));
 }
 
+function commonList(comments) {
+  console.log(comments);
+  return (
+    <List dense>
+      {comments.map((comment) => {
+        return (
+          <React.Fragment key={comment._id}>
+            <ListItem>
+              <ListItemText
+                primary={
+                  // eslint-disable-next-line react/jsx-wrap-multilines
+                  <Box>
+                    <Link
+                      href={`#/users/${comment.user._id}`}
+                      color="inherit"
+                      underline="hover"
+                      sx={{ fontWeight: "bold" }}
+                    >
+                      {`${comment.user.first_name} ${comment.user.last_name}`}
+                    </Link>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ ml: 1 }}
+                    >
+                      {humanize(comment.date_time)}
+                    </Typography>
+                  </Box>
+                }
+                secondary={
+                  // eslint-disable-next-line react/jsx-wrap-multilines
+                  <Typography
+                    variant="body2"
+                    color="text.primary"
+                    sx={{ mt: 1 }}
+                  >
+                    <span
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{
+                        __html: comment.comment,
+                      }}
+                    />
+                  </Typography>
+                }
+              />
+            </ListItem>
+            <Divider />
+          </React.Fragment>
+        );
+      })}
+    </List>
+  );
+}
+
 /**
  * Define UserPhotos, a React component of CS142 Project 5.
  */
@@ -72,54 +126,7 @@ class UserPhotos extends React.Component {
                     variant="outlined"
                   />
                   {photo.comments && photo.comments.length > 0 ? (
-                    <List dense>
-                      {photo.comments.map((comment) => {
-                        return (
-                          <React.Fragment key={comment._id}>
-                            <ListItem>
-                              <ListItemText
-                                primary={
-                                  // eslint-disable-next-line react/jsx-wrap-multilines
-                                  <Box>
-                                    <Link
-                                      href={`#/users/${comment.user._id}`}
-                                      color="inherit"
-                                      underline="hover"
-                                      sx={{ fontWeight: "bold" }}
-                                    >
-                                      {`${comment.user.first_name} ${comment.user.last_name}`}
-                                    </Link>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                      sx={{ ml: 1 }}
-                                    >
-                                      {humanize(comment.date_time)}
-                                    </Typography>
-                                  </Box>
-                                }
-                                secondary={
-                                  // eslint-disable-next-line react/jsx-wrap-multilines
-                                  <Typography
-                                    variant="body2"
-                                    color="text.primary"
-                                    sx={{ mt: 1 }}
-                                  >
-                                    <span
-                                      // eslint-disable-next-line react/no-danger
-                                      dangerouslySetInnerHTML={{
-                                        __html: comment.comment,
-                                      }}
-                                    />
-                                  </Typography>
-                                }
-                              />
-                            </ListItem>
-                            <Divider />
-                          </React.Fragment>
-                        );
-                      })}
-                    </List>
+                    commonList(photo.comments)
                   ) : (
                     <Typography
                       variant="body2"
