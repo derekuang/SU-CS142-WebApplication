@@ -1,0 +1,15 @@
+// Project tasks configuration. See https://zed.dev/docs/tasks for documentation.
+//
+// Example:
+[
+  {
+    "label": "build",
+    "command": "npm run build:w",
+    "hide": "always"
+  },
+  {
+    "label": "run",
+    "command": "node webServer.js",
+    "hide": "always"
+  }
+]
