@@ -110,7 +110,7 @@ class UserPhotos extends React.Component {
       <Grid container spacing={2} sx={{ height: "100%", overflowY: "auto" }}>
         {photos.map((photo) => {
           return (
-            <Grid item xs={12} sm={6} md={4} key={photo._id}>
+            <Grid xs={12} sm={6} md={4} key={photo._id}>
               <Card sx={{ height: { xs: 300, md: 400 }, overflowY: "auto" }}>
                 <CardMedia
                   component="img"
