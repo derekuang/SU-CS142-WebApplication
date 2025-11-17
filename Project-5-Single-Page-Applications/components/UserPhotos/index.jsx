@@ -25,7 +25,6 @@ function humanize(dateTime) {
 }
 
 function commonList(comments) {
-  console.log(comments);
   return (
     <List dense>
       {comments.map((comment) => {
