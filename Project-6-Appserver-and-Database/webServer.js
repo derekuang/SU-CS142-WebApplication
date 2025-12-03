@@ -40,7 +40,7 @@ const express = require("express");
 const app = express();
 
 // Load the Mongoose schema for User, Photo, and SchemaInfo
-const User = require("./schema/user.js").default;
+const User = require("./schema/user.js");
 const Photo = require("./schema/photo.js");
 const SchemaInfo = require("./schema/schemaInfo.js");
 
@@ -116,6 +116,7 @@ app.get("/test/:p1", function (request, response) {
     async.each(
       collections,
       function (col, done_callback) {
+        console.log(col);
         col.collection.countDocuments({}, function (err, count) {
           col.count = count;
           done_callback(err);
