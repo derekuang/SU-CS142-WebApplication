@@ -145,7 +145,13 @@ app.get("/test/:p1", function (request, response) {
  * URL /user/list - Returns all the User objects.
  */
 app.get("/user/list", function (request, response) {
-  response.status(200).send(cs142models.userListModel());
+  User.find({}, function (err, users) {
+    if (err) {
+      console.log("Error finding users:", err);
+      response.status(500).send(JSON.stringify(err));
+    }
+    response.status(200).send(users);
+  });
 });
 
 /**
