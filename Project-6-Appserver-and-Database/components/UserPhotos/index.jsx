@@ -36,12 +36,12 @@ function commonList(comments) {
                   // eslint-disable-next-line react/jsx-wrap-multilines
                   <Box>
                     <Link
-                      href={`#/users/${comment.user._id}`}
+                      href={`#/users/${comment.user_id}`}
                       color="inherit"
                       underline="hover"
                       sx={{ fontWeight: "bold" }}
                     >
-                      {`${comment.user.first_name} ${comment.user.last_name}`}
+                      {`${comment.user_first_name} ${comment.user_last_name}`}
                     </Link>
                     <Typography
                       variant="caption"
@@ -90,12 +90,42 @@ class UserPhotos extends React.Component {
     const promise2 = fetchModel(`/photosOfUser/${userId}`);
     Promise.all([promise1, promise2]).then((values) => {
       const user = values[0].data;
-      const photos = values[1].data;
-      this.setState({ photos });
       this.props.changeContent(
         "Photos of ",
         `${user.first_name} ${user.last_name}`,
       );
+
+      const photos = values[1].data;
+      const commentPromises = [];
+
+      photos.forEach((photo, photoIndex) => {
+        if (photo.comments && photo.comments.length > 0) {
+          photo.comments.forEach((comment, commentIndex) => {
+            const promise = fetchModel(`/user/${comment.user_id}`)
+              .then(userData => ({
+                photoIndex,
+                commentIndex,
+                commentUser: userData.data,
+              }))
+              .catch(error => {
+                console.error(`Failed to fetch user for comment ${comment._id}:`, error);
+                return null;
+              });
+            commentPromises.push(promise);
+          });
+        }
+      });
+
+      Promise.all(commentPromises).then(results => {
+        results.forEach(result => {
+          if (result && result.commentUser) {
+            const { photoIndex, commentIndex, commentUser } = result;
+            photos[photoIndex].comments[commentIndex].user_first_name = commentUser.first_name;
+            photos[photoIndex].comments[commentIndex].user_last_name = commentUser.last_name;
+          }
+        });
+        this.setState({ photos });
+      });
     });
   }
 

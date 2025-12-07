@@ -46,7 +46,6 @@ const SchemaInfo = require("./schema/schemaInfo.js");
 
 // XXX - Your submission should work without this line. Comment out or delete
 // this line for tests and before submission!
-const cs142models = require("./modelData/photoApp.js").cs142models;
 mongoose.set("strictQuery", false);
 mongoose.connect("mongodb://127.0.0.1/cs142project6", {
   useNewUrlParser: true,
@@ -148,7 +147,8 @@ app.get("/user/list", function (request, response) {
   User.find({}, function (err, users) {
     if (err) {
       console.log("Error finding users:", err);
-      response.status(500).send(JSON.stringify(err));
+      response.status(500).send(err);
+      return;
     }
     response.status(200).send(users);
   });
@@ -159,13 +159,14 @@ app.get("/user/list", function (request, response) {
  */
 app.get("/user/:id", function (request, response) {
   const id = request.params.id;
-  const user = cs142models.userModel(id);
-  if (user === null) {
-    console.log("User with _id:" + id + " not found.");
-    response.status(400).send("Not found");
-    return;
-  }
-  response.status(200).send(user);
+  User.findById({ _id: id }, function (err, user) {
+    if (err) {
+      console.log("Error finding user:", err);
+      response.status(500).send(err);
+      return;
+    }
+    response.status(200).send(user);
+  });
 });
 
 /**
@@ -173,13 +174,20 @@ app.get("/user/:id", function (request, response) {
  */
 app.get("/photosOfUser/:id", function (request, response) {
   const id = request.params.id;
-  const photos = cs142models.photoOfUserModel(id);
-  if (photos.length === 0) {
-    console.log("Photos for user with _id:" + id + " not found.");
-    response.status(400).send("Not found");
-    return;
-  }
-  response.status(200).send(photos);
+  Photo.find({user_id: id}, function (err, photos) {
+    if (err) {
+      console.log("Error finding photos:", err);
+      response.status(500).send(err);
+      return;
+    }
+    if (photos.length === 0) {
+      console.log("Photos for user with _id:" + id + " not found.");
+      response.status(400).send("Not found");
+      return;
+    }
+    console.log(photos);
+    response.status(200).send(JSON.stringify(photos));
+  });
 });
 
 const server = app.listen(3000, function () {
