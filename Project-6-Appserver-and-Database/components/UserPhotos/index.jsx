@@ -86,47 +86,43 @@ class UserPhotos extends React.Component {
     this.state = {};
 
     const userId = props.match.params.userId;
-    const promise1 = fetchModel(`/user/${userId}`);
-    const promise2 = fetchModel(`/photosOfUser/${userId}`);
-    Promise.all([promise1, promise2]).then((values) => {
-      const user = values[0].data;
-      this.props.changeContent(
-        "Photos of ",
-        `${user.first_name} ${user.last_name}`,
-      );
+    this.init(userId);
+  }
 
-      const photos = values[1].data;
-      const commentPromises = [];
+  async init(userId) {
+    const user = (await fetchModel(`/user/${userId}`)).data;
+    this.props.changeContent(
+      "Photos of ",
+      `${user.first_name} ${user.last_name}`,
+    );
 
-      photos.forEach((photo, photoIndex) => {
-        if (photo.comments && photo.comments.length > 0) {
-          photo.comments.forEach((comment, commentIndex) => {
-            const promise = fetchModel(`/user/${comment.user_id}`)
-              .then(userData => ({
-                photoIndex,
-                commentIndex,
-                commentUser: userData.data,
-              }))
-              .catch(error => {
-                console.error(`Failed to fetch user for comment ${comment._id}:`, error);
-                return null;
-              });
-            commentPromises.push(promise);
-          });
+    const photos = (await fetchModel(`/photosOfUser/${userId}`)).data;
+    const commentPromises = [];
+    for (const [photoIndex, photo] of photos.entries()) {
+      if (photo.comments && photo.comments.length > 0) {
+        for (const [commentIndex, comment] of photo.comments.entries()) {
+          const commentPromise = fetchModel(`/user/${comment.user_id}`)
+            .then(userData => ({
+              photoIndex,
+              commentIndex,
+              commentUser: userData.data
+            }))
+            .catch(err => {
+              console.error(`Failed to fetch user for comment ${comment._id}:`, err);
+              return null;
+            });
+          commentPromises.push(commentPromise);
         }
-      });
+      }
+    }
 
-      Promise.all(commentPromises).then(results => {
-        results.forEach(result => {
-          if (result && result.commentUser) {
-            const { photoIndex, commentIndex, commentUser } = result;
-            photos[photoIndex].comments[commentIndex].user_first_name = commentUser.first_name;
-            photos[photoIndex].comments[commentIndex].user_last_name = commentUser.last_name;
-          }
-        });
-        this.setState({ photos });
-      });
-    });
+    const results = await Promise.all(commentPromises);
+    for ( const result of results) {
+      const { photoIndex, commentIndex, commentUser } = result;
+      photos[photoIndex].comments[commentIndex].user_first_name = commentUser.first_name;
+      photos[photoIndex].comments[commentIndex].user_last_name = commentUser.last_name;
+    }
+    this.setState({ photos });
   }
 
   render() {
