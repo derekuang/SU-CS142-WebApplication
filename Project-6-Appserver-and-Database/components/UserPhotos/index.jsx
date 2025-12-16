@@ -36,12 +36,12 @@ function commonList(comments) {
                   // eslint-disable-next-line react/jsx-wrap-multilines
                   <Box>
                     <Link
-                      href={`#/users/${comment.user_id}`}
+                      href={`#/users/${comment.user._id}`}
                       color="inherit"
                       underline="hover"
                       sx={{ fontWeight: "bold" }}
                     >
-                      {`${comment.user_first_name} ${comment.user_last_name}`}
+                      {`${comment.user.first_name} ${comment.user._last_name}`}
                     </Link>
                     <Typography
                       variant="caption"
@@ -97,31 +97,6 @@ class UserPhotos extends React.Component {
     );
 
     const photos = (await fetchModel(`/photosOfUser/${userId}`)).data;
-    const commentPromises = [];
-    for (const [photoIndex, photo] of photos.entries()) {
-      if (photo.comments && photo.comments.length > 0) {
-        for (const [commentIndex, comment] of photo.comments.entries()) {
-          const commentPromise = fetchModel(`/user/${comment.user_id}`)
-            .then(userData => ({
-              photoIndex,
-              commentIndex,
-              commentUser: userData.data
-            }))
-            .catch(err => {
-              console.error(`Failed to fetch user for comment ${comment._id}:`, err);
-              return null;
-            });
-          commentPromises.push(commentPromise);
-        }
-      }
-    }
-
-    const results = await Promise.all(commentPromises);
-    for ( const result of results) {
-      const { photoIndex, commentIndex, commentUser } = result;
-      photos[photoIndex].comments[commentIndex].user_first_name = commentUser.first_name;
-      photos[photoIndex].comments[commentIndex].user_last_name = commentUser.last_name;
-    }
     this.setState({ photos });
   }
 

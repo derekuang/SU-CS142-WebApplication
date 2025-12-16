@@ -151,7 +151,7 @@ app.get("/user/list", function (request, response) {
       return;
     }
     response.status(200).send(users);
-  });
+  }).select("first_name last_name");
 });
 
 /**
@@ -162,11 +162,11 @@ app.get("/user/:id", function (request, response) {
   User.findById({ _id: id }, function (err, user) {
     if (err) {
       console.log("Error finding user:", err);
-      response.status(500).send(err);
+      response.status(400).send(err);
       return;
     }
     response.status(200).send(user);
-  });
+  }).select("-__v");
 });
 
 /**
@@ -174,20 +174,36 @@ app.get("/user/:id", function (request, response) {
  */
 app.get("/photosOfUser/:id", function (request, response) {
   const id = request.params.id;
-  Photo.find({user_id: id}, function (err, photos) {
-    if (err) {
-      console.log("Error finding photos:", err);
-      response.status(500).send(err);
-      return;
-    }
-    if (photos.length === 0) {
-      console.log("Photos for user with _id:" + id + " not found.");
-      response.status(400).send("Not found");
-      return;
-    }
-    console.log(photos);
-    response.status(200).send(JSON.stringify(photos));
-  });
+  Photo.find({ user_id: id })
+    .select("-__v")
+    .populate({
+      path: "comments.user_id",
+      select: "first_name last_name"
+    })
+    .exec(function (err, photos) {
+      if (err) {
+        console.log("Error finding photos:", err);
+        response.status(400).send(err);
+        return;
+      }
+
+      const processedPhotos = photos.map(photo => {
+        const photoObj = photo.toObject();
+        if (photoObj.comments) {
+          photoObj.comments = photoObj.comments.map(comment => {
+            const { user_id, ...rest } = comment;
+            return {
+              ...rest,
+              user: user_id
+            };
+          });
+        }
+        return photoObj;
+      });
+
+      console.log(processedPhotos);
+      response.status(200).send(processedPhotos);
+    });
 });
 
 const server = app.listen(3000, function () {
