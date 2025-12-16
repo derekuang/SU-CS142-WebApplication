@@ -1,9 +1,9 @@
 import React from "react";
 import { withRouter } from "react-router-dom";
 import { AppBar, Box, Toolbar, Typography } from "@mui/material";
+import axios from "axios";
 
 import "./styles.css";
-import fetchModel from "../../lib/fetchModelData";
 
 const myName = "Derekuang";
 
@@ -15,7 +15,7 @@ class TopBar extends React.Component {
     super(props);
     this.state = { route: props.location.pathname };
 
-    const promise = fetchModel("/test/info");
+    const promise = axios.get("/test/info");
     promise.then((response) => {
       this.setState({ version: response.data.__v });
     });

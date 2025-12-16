@@ -7,9 +7,9 @@ import {
   ListItem,
   ListItemText,
 } from "@mui/material";
+import axios from "axios";
 
 import "./styles.css";
-import fetchModel from "../../lib/fetchModelData";
 
 /**
  * Define UserList, a React component of CS142 Project 5.
@@ -18,7 +18,7 @@ class UserList extends React.Component {
   constructor(props) {
     super(props);
     this.state = {};
-    fetchModel("/user/list").then((response) => {
+    axios.get("/user/list").then((response) => {
       this.setState({ users: response.data });
     });
   }

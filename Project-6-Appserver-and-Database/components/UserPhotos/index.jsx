@@ -15,9 +15,9 @@ import {
 import Grid from "@mui/material/Unstable_Grid2";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import axios from "axios";
 
 import "./styles.css";
-import fetchModel from "../../lib/fetchModelData";
 
 function humanize(dateTime) {
   dayjs.extend(relativeTime);
@@ -90,13 +90,13 @@ class UserPhotos extends React.Component {
   }
 
   async init(userId) {
-    const user = (await fetchModel(`/user/${userId}`)).data;
+    const user = (await axios.get(`/user/${userId}`)).data;
     this.props.changeContent(
       "Photos of ",
       `${user.first_name} ${user.last_name}`,
     );
 
-    const photos = (await fetchModel(`/photosOfUser/${userId}`)).data;
+    const photos = (await axios.get(`/photosOfUser/${userId}`)).data;
     this.setState({ photos });
   }
 

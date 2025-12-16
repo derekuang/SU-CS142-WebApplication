@@ -1,8 +1,8 @@
 import React from "react";
 import { Button, Stack, Divider, Link, Typography, Box } from "@mui/material";
+import axios from "axios";
 
 import "./styles.css";
-import fetchModel from "../../lib/fetchModelData";
 
 /**
  * Define UserDetail, a React component of CS142 Project 5.
@@ -13,7 +13,7 @@ class UserDetail extends React.Component {
     this.state = {};
 
     const userId = props.match.params.userId;
-    fetchModel(`/user/${userId}`).then((response) => {
+    axios.get(`/user/${userId}`).then((response) => {
       const user = response.data;
       this.setState({ user: user });
       this.props.changeContent("", `${user.first_name} ${user.last_name}`);
@@ -25,7 +25,7 @@ class UserDetail extends React.Component {
     if (userId === this.state?.user._id) {
       return;
     }
-    fetchModel(`/user/${userId}`).then((response) => {
+    axios.get(`/user/${userId}`).then((response) => {
       const user = response.data;
       this.setState({ user: user });
       this.props.changeContent("", `${user.first_name} ${user.last_name}`);
