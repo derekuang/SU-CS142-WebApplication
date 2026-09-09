@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cs142-project2
+    working_dir: /app
+    volumes:
+      # 将当前项目目录挂载到容器内，实现代码同步
+      - .:/app
+      # 保留容器内的 node_modules，避免被本地挂载覆盖
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
