@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:22-slim
 
 # 设置工作目录（与 compose 中的挂载目标一致）
 WORKDIR /workspace
@@ -16,4 +16,4 @@ COPY . .
 EXPOSE 3000
 
 # 默认命令（可被 compose 覆盖）
-CMD ["sh", "-c", "nohup node webServer.js & tail -f /dev/null"]
+CMD ["sh", "-c", "node webServer.js"]

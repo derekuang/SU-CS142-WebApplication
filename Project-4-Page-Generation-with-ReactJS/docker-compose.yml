@@ -3,13 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cs142-project4
+    container_name: cs142-p4
     working_dir: /workspace
     volumes:
       - .:/workspace               # 代码挂载
       - /workspace/node_modules    # 匿名卷，保留镜像中的 node_modules，避免被本地覆盖
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=development
-    command: sh -c "nohup node webServer.js & tail -f /dev/null"
