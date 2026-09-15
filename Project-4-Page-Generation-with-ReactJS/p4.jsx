@@ -26,7 +26,7 @@ function App(props) {
 
   return (
     <>
-      <button onClick={() => setView(preView => getNextView(preView))}>
+      <button onClick={() => setView(nextView)}>
         Switch to {nextView.key}
       </button>
       {view.component}
