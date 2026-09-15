@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Unstable_Grid2";
+import { withRouter } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -145,4 +146,4 @@ class UserPhotos extends React.Component {
   }
 }
 
-export default UserPhotos;
+export default withRouter(UserPhotos);

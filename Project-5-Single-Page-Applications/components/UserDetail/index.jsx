@@ -1,5 +1,6 @@
 import React from "react";
 import { Button, Stack, Divider, Link, Typography, Box } from "@mui/material";
+import { withRouter } from "react-router-dom";
 
 import "./styles.css";
 import fetchModel from "../../lib/fetchModelData";
@@ -62,4 +63,4 @@ class UserDetail extends React.Component {
   }
 }
 
-export default UserDetail;
+export default withRouter(UserDetail);
