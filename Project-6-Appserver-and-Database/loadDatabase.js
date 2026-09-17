@@ -16,9 +16,10 @@
 
 // We use the Mongoose to define the schema stored in MongoDB.
 const mongoose = require("mongoose");
+const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/cs142project6";
 mongoose.Promise = require("bluebird");
 mongoose.set("strictQuery", false);
-mongoose.connect("mongodb://127.0.0.1/cs142project6", {
+mongoose.connect(dbUrl, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });

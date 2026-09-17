@@ -46,8 +46,9 @@ const SchemaInfo = require("./schema/schemaInfo.js");
 
 // XXX - Your submission should work without this line. Comment out or delete
 // this line for tests and before submission!
+const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/cs142project6";
 mongoose.set("strictQuery", false);
-mongoose.connect("mongodb://127.0.0.1/cs142project6", {
+mongoose.connect(dbUrl, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });

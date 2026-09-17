@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cs142-p6
+    working_dir: /workspace
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/cs142project6
+    volumes:
+      - .:/workspace               # 代码挂载
+      - /workspace/node_modules    # 匿名卷，保留镜像中的 node_modules，避免被本地覆盖
+      - /workspace/compiled        # 匿名卷，保留编译后的文件
+    ports:
+      - "3000:3000"
+    post_start:
+      - command: ["sh", "-c", "node loadDatabase.js"]
+      - command: ["sh", "-c", "npm run build:w"]
+    command: ["sh", "-c", "node webServer.js"]
+
+  mongo:
+    image: mongo:6.0
+    container_name: cs142-p6-mongo
