@@ -38,24 +38,12 @@ class PhotoShare extends React.Component {
             <Grid item xs={12} sm={9}>
               <Paper className="cs142-main-grid-item">
                 <Switch>
-                  <Route
-                    path="/users/:userId"
-                    render={(props) => (
-                      <UserDetail
-                        {...props}
-                        changeContent={this.changeContent}
-                      />
-                    )}
-                  />
-                  <Route
-                    path="/photos/:userId"
-                    render={(props) => (
-                      <UserPhotos
-                        {...props}
-                        changeContent={this.changeContent}
-                      />
-                    )}
-                  />
+                  <Route path="/users/:userId">
+                    <UserDetail changeContent={this.changeContent} />
+                  </Route>
+                  <Route path="/photos/:userId">
+                    <UserPhotos changeContent={this.changeContent} />
+                  </Route>
                   <Route path="/users" component={UserList} />
                 </Switch>
               </Paper>

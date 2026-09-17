@@ -1,4 +1,5 @@
 import React from "react";
+import { withRouter } from "react-router-dom";
 import { Button, Stack, Divider, Link, Typography, Box } from "@mui/material";
 import axios from "axios";
 
@@ -62,4 +63,4 @@ class UserDetail extends React.Component {
   }
 }
 
-export default UserDetail;
+export default withRouter(UserDetail);

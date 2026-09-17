@@ -1,4 +1,5 @@
 import React from "react";
+import { withRouter } from "react-router-dom";
 import {
   Box,
   Card,
@@ -41,7 +42,7 @@ function commonList(comments) {
                       underline="hover"
                       sx={{ fontWeight: "bold" }}
                     >
-                      {`${comment.user.first_name} ${comment.user._last_name}`}
+                      {`${comment.user.first_name} ${comment.user.last_name}`}
                     </Link>
                     <Typography
                       variant="caption"
@@ -146,4 +147,4 @@ class UserPhotos extends React.Component {
   }
 }
 
-export default UserPhotos;
+export default withRouter(UserPhotos);
