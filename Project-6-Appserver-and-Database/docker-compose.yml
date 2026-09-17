@@ -17,7 +17,7 @@ services:
       - "3000:3000"
     post_start:
       - command: ["sh", "-c", "node loadDatabase.js"]
-      - command: ["sh", "-c", "npm run build:w"]
+      - command: ["sh", "-c", "npm run build:w &"]
     command: ["sh", "-c", "node webServer.js"]
 
   mongo:
