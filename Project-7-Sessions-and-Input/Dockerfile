@@ -8,9 +8,6 @@ COPY package*.json ./
 
 # 安装依赖（包括 devDependencies）
 RUN npm install
-RUN npm install --save express-session
-RUN npm install --save body-parser
-RUN npm install --save multer
 
 RUN npm install -g nodemon
 
