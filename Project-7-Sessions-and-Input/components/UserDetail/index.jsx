@@ -15,9 +15,7 @@ class UserDetail extends React.Component {
 
     const userId = props.match.params.userId;
     axios.get(`/user/${userId}`).then((response) => {
-      const user = response.data;
-      this.setState({ user: user });
-      this.props.changeContent("", `${user.first_name} ${user.last_name}`);
+      this.setState({ user: response.data });
     });
   }
 
@@ -27,9 +25,7 @@ class UserDetail extends React.Component {
       return;
     }
     axios.get(`/user/${userId}`).then((response) => {
-      const user = response.data;
-      this.setState({ user: user });
-      this.props.changeContent("", `${user.first_name} ${user.last_name}`);
+      this.setState({ user: response.data });
     });
   }
 

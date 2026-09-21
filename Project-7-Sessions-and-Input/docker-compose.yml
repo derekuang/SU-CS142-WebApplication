@@ -20,3 +20,8 @@ services:
   mongo:
     image: mongo:6.0
     container_name: cs142-p7-mongo
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

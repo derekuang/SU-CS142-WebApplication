@@ -148,6 +148,59 @@ app.get("/test/:p1", function (request, response) {
 });
 
 /**
+ * URL /admin/login - Logs in the user with the given parameter_name and
+ * parameter_password fields.
+ *
+ * On success the user's _id is stored in the session and the User object
+ * (without the password) is returned. On failure a 400 error with a message is
+ * returned so the client can prompt the user to retry.
+ */
+app.post("/admin/login", function (request, response) {
+  const loginName = request.body.parameter_name;
+  const password = request.body.parameter_password;
+
+  User.findOne({ login_name: loginName }, function (err, user) {
+    if (err) {
+      console.log("Error finding user:", err);
+      response.status(400).send("Login failed. Please try again.");
+      return;
+    }
+
+    if (!user || user.password !== password) {
+      response
+        .status(400)
+        .send("Invalid user name or password. Please try again.");
+      return;
+    }
+
+    request.session.user_id = user._id;
+
+    const loggedInUser = user.toObject();
+    delete loggedInUser.password;
+    response.status(200).send(loggedInUser);
+  });
+});
+
+/**
+ * URL /admin/logout - Logs out the current user by destroying the session.
+ */
+app.post("/admin/logout", function (request, response) {
+  if (!request.session.user_id) {
+    response.status(400).send("Not logged in");
+    return;
+  }
+
+  request.session.destroy(function (err) {
+    if (err) {
+      console.log("Error destroying session:", err);
+      response.status(400).send("Logout failed. Please try again.");
+      return;
+    }
+    response.status(200).send("Logged out");
+  });
+});
+
+/**
  * URL /user/list - Returns all the User objects.
  */
 app.get("/user/list", function (request, response) {

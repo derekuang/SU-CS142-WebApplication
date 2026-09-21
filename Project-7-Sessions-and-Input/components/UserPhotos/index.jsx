@@ -91,12 +91,6 @@ class UserPhotos extends React.Component {
   }
 
   async init(userId) {
-    const user = (await axios.get(`/user/${userId}`)).data;
-    this.props.changeContent(
-      "Photos of ",
-      `${user.first_name} ${user.last_name}`,
-    );
-
     const photos = (await axios.get(`/photosOfUser/${userId}`)).data;
     this.setState({ photos });
   }
