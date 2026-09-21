@@ -1,6 +1,6 @@
 import React from "react";
 import { withRouter } from "react-router-dom";
-import { AppBar, Box, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, Button, Link, Toolbar, Typography } from "@mui/material";
 import axios from "axios";
 
 import "./styles.css";
@@ -35,9 +35,30 @@ class TopBar extends React.Component {
             <Typography variant="h5" color="inherit">
               {`${myName} v${this.state.version}`}
             </Typography>
-            <Typography variant="h5" color="inherit">
-              {this.props.content}
-            </Typography>
+            <Box display="flex" alignItems="center">
+              <Typography variant="h5" color="inherit">
+                {this.props.userIsLoggedIn ? (
+                  this.props.content
+                ) : (
+                  <Link
+                    href="#/login-register"
+                    color="inherit"
+                    underline="hover"
+                  >
+                    {this.props.content}
+                  </Link>
+                )}
+              </Typography>
+              {this.props.userIsLoggedIn ? (
+                <Button
+                  color="inherit"
+                  onClick={this.props.onLogout}
+                  sx={{ ml: 2 }}
+                >
+                  Logout
+                </Button>
+              ) : null}
+            </Box>
           </Box>
         </Toolbar>
       </AppBar>
