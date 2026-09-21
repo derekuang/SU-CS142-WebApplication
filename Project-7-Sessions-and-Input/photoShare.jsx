@@ -15,8 +15,23 @@ class PhotoShare extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      user: null
+      user: null,
+      checkingSession: true
     };
+  }
+
+  componentDidMount() {
+    // Ask the server who is logged in from the session cookie so that a page
+    // reload (e.g. F5) restores the login state instead of dropping the user
+    // back to the login screen.
+    axios
+      .get("/admin/currentUser")
+      .then((response) => {
+        this.setState({ user: response.data, checkingSession: false });
+      })
+      .catch(() => {
+        this.setState({ user: null, checkingSession: false });
+      });
   }
 
   isUserLoggedIn = () => {
@@ -33,7 +48,27 @@ class PhotoShare extends React.Component {
   };
 
   render() {
+    const { checkingSession } = this.state;
     const loggedIn = this.isUserLoggedIn();
+
+    if (checkingSession) {
+      return (
+        <HashRouter>
+          <div>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TopBar
+                  content="Please Login"
+                  userIsLoggedIn={false}
+                  onLogout={this.handleLogout}
+                />
+              </Grid>
+              <div className="cs142-main-topbar-buffer" />
+            </Grid>
+          </div>
+        </HashRouter>
+      );
+    }
 
     return (
       <HashRouter>

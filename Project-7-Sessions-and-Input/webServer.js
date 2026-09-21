@@ -201,6 +201,35 @@ app.post("/admin/logout", function (request, response) {
 });
 
 /**
+ * URL /admin/currentUser - Returns the currently logged in user from the
+ * session. If no user is logged in a 401 is returned. This lets the client
+ * restore its login state after a page reload (e.g. an F5 refresh).
+ */
+app.get("/admin/currentUser", function (request, response) {
+  if (!request.session.user_id) {
+    response.status(401).send("Not logged in");
+    return;
+  }
+
+  User.findById(request.session.user_id, function (err, user) {
+    if (err) {
+      console.log("Error finding user:", err);
+      response.status(400).send("Unable to load user");
+      return;
+    }
+
+    if (!user) {
+      response.status(401).send("Not logged in");
+      return;
+    }
+
+    const loggedInUser = user.toObject();
+    delete loggedInUser.password;
+    response.status(200).send(loggedInUser);
+  });
+});
+
+/**
  * URL /user/list - Returns all the User objects.
  */
 app.get("/user/list", function (request, response) {
