@@ -63,6 +63,23 @@ app.use(express.static(__dirname));
 app.use(session({secret: "secretKey", resave: false, saveUninitialized: false}));
 app.use(bodyParser.json());
 
+/**
+ * Route middleware that rejects the request unless a user is logged in. The
+ * session is the only source of identity, so every route that exposes user
+ * information goes through this.
+ *
+ * Note: /test/:p1 and / are deliberately left open. TopBar fetches
+ * /test/info before anyone logs in to display the version number, and the
+ * connectivity checks use it too.
+ */
+function requireLogin(request, response, next) {
+  if (!request.session.user_id) {
+    response.status(401).send("Not logged in");
+    return;
+  }
+  next();
+}
+
 app.get("/", function (request, response) {
   response.send("Simple web server of files from " + __dirname);
 });
@@ -205,12 +222,7 @@ app.post("/admin/logout", function (request, response) {
  * session. If no user is logged in a 401 is returned. This lets the client
  * restore its login state after a page reload (e.g. an F5 refresh).
  */
-app.get("/admin/currentUser", function (request, response) {
-  if (!request.session.user_id) {
-    response.status(401).send("Not logged in");
-    return;
-  }
-
+app.get("/admin/currentUser", requireLogin, function (request, response) {
   User.findById(request.session.user_id, function (err, user) {
     if (err) {
       console.log("Error finding user:", err);
@@ -232,7 +244,7 @@ app.get("/admin/currentUser", function (request, response) {
 /**
  * URL /user/list - Returns all the User objects.
  */
-app.get("/user/list", function (request, response) {
+app.get("/user/list", requireLogin, function (request, response) {
   User.find({}, function (err, users) {
     if (err) {
       console.log("Error finding users:", err);
@@ -246,7 +258,7 @@ app.get("/user/list", function (request, response) {
 /**
  * URL /user/:id - Returns the information for User (id).
  */
-app.get("/user/:id", function (request, response) {
+app.get("/user/:id", requireLogin, function (request, response) {
   const id = request.params.id;
   User.findById({ _id: id }, function (err, user) {
     if (err) {
@@ -255,13 +267,13 @@ app.get("/user/:id", function (request, response) {
       return;
     }
     response.status(200).send(user);
-  }).select("-__v");
+  }).select("-__v -login_name -password");
 });
 
 /**
  * URL /photosOfUser/:id - Returns the Photos for User (id).
  */
-app.get("/photosOfUser/:id", function (request, response) {
+app.get("/photosOfUser/:id", requireLogin, function (request, response) {
   const id = request.params.id;
   Photo.find({ user_id: id })
     .select("-__v")
