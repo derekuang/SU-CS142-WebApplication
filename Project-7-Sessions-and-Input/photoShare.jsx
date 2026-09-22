@@ -48,79 +48,92 @@ class PhotoShare extends React.Component {
   };
 
   render() {
-    const { checkingSession } = this.state;
-    const loggedIn = this.isUserLoggedIn();
-
-    if (checkingSession) {
-      return (
-        <HashRouter>
-          <div>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TopBar
-                  content="Please Login"
-                  userIsLoggedIn={false}
-                  onLogout={this.handleLogout}
-                />
-              </Grid>
-              <div className="cs142-main-topbar-buffer" />
-            </Grid>
-          </div>
-        </HashRouter>
-      );
-    }
-
     return (
       <HashRouter>
         <div>
           <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TopBar
-                content={
-                  loggedIn ? `Hi ${this.state.user.first_name}` : "Please Login"
-                }
-                userIsLoggedIn={loggedIn}
-                onLogout={this.handleLogout}
-              />
-            </Grid>
+            {this.renderTopBar()}
             <div className="cs142-main-topbar-buffer" />
-            {loggedIn ? (
-              <React.Fragment>
-                <Grid item xs={12} sm={3}>
-                  <Paper className="cs142-main-grid-item">
-                    <UserList />
-                  </Paper>
-                </Grid>
-                <Grid item xs={12} sm={9}>
-                  <Paper className="cs142-main-grid-item">
-                    <Switch>
-                      <Route path="/users/:userId">
-                        <UserDetail />
-                      </Route>
-                      <Route path="/photos/:userId">
-                        <UserPhotos />
-                      </Route>
-                      <Route path="/users" component={UserList} />
-                      <Redirect to={`/users/${this.state.user._id}`} />
-                    </Switch>
-                  </Paper>
-                </Grid>
-              </React.Fragment>
-            ) : (
-              <Grid item xs={12}>
-                <Paper className="cs142-main-grid-item">
-                  <Switch>
-                    <Route path="/login-register">
-                      <LoginRegister onLogin={this.handleLogin} />
-                    </Route>
-                    <Redirect to="/login-register" />
-                  </Switch>
-                </Paper>
-              </Grid>
-            )}
+            {this.renderMainContent()}
           </Grid>
         </div>
       </HashRouter>
+    );
+  }
+
+  renderTopBar() {
+    const loggedIn = this.isUserLoggedIn();
+
+    return (
+      <Grid item xs={12}>
+        <TopBar
+          content={
+            loggedIn ? `Hi ${this.state.user.first_name}` : "Please Login"
+          }
+          userIsLoggedIn={loggedIn}
+          onLogout={this.handleLogout}
+        />
+      </Grid>
+    );
+  }
+
+  /**
+   * The main area has three cases: the session check is still in flight, the
+   * user is logged in, or the user is logged out. Each case is rendered by its
+   * own method below.
+   */
+  renderMainContent() {
+    if (this.state.checkingSession) {
+      // Leave the area empty so we don't flash the login form before we know
+      // whether the session cookie is still valid.
+      return null;
+    }
+
+    if (!this.isUserLoggedIn()) {
+      return this.renderLoginForm();
+    }
+
+    return this.renderLoggedIn();
+  }
+
+  renderLoggedIn() {
+    return (
+      <React.Fragment>
+        <Grid item xs={12} sm={3}>
+          <Paper className="cs142-main-grid-item">
+            <UserList />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={9}>
+          <Paper className="cs142-main-grid-item">
+            <Switch>
+              <Route path="/users/:userId">
+                <UserDetail />
+              </Route>
+              <Route path="/photos/:userId">
+                <UserPhotos />
+              </Route>
+              <Route path="/users" component={UserList} />
+              <Redirect to={`/users/${this.state.user._id}`} />
+            </Switch>
+          </Paper>
+        </Grid>
+      </React.Fragment>
+    );
+  }
+
+  renderLoginForm() {
+    return (
+      <Grid item xs={12}>
+        <Paper className="cs142-main-grid-item">
+          <Switch>
+            <Route path="/login-register">
+              <LoginRegister onLogin={this.handleLogin} />
+            </Route>
+            <Redirect to="/login-register" />
+          </Switch>
+        </Paper>
+      </Grid>
     );
   }
 }

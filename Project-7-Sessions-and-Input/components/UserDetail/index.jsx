@@ -21,7 +21,7 @@ class UserDetail extends React.Component {
 
   componentDidUpdate() {
     const userId = this.props.match.params.userId;
-    if (userId === this.state?.user._id) {
+    if (userId === this.state.user?._id) {
       return;
     }
     axios.get(`/user/${userId}`).then((response) => {
