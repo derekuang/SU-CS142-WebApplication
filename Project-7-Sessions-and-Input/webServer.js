@@ -307,6 +307,48 @@ app.get("/photosOfUser/:id", requireLogin, function (request, response) {
     });
 });
 
+/**
+ * URL /commentsOfPhoto/:photo_id - Adds a comment to Photo (photo_id) from the
+ * currently logged in user. The comment text is supplied in the request body's
+ * `comment` property. Empty comment text is rejected with a 400.
+ */
+app.post("/commentsOfPhoto/:photo_id", requireLogin, function (request, response) {
+  const photoId = request.params.photo_id;
+  const commentText = request.body.comment;
+
+  if (!commentText || commentText.trim() === "") {
+    response.status(400).send("Comment text is required");
+    return;
+  }
+
+  Photo.findById(photoId, function (err, photo) {
+    if (err) {
+      console.log("Error finding photo:", err);
+      response.status(400).send("Unable to load photo");
+      return;
+    }
+
+    if (!photo) {
+      response.status(400).send("Photo not found");
+      return;
+    }
+
+    photo.comments.push({
+      comment: commentText.trim(),
+      user_id: request.session.user_id,
+    });
+
+    photo.save(function (saveErr, updatedPhoto) {
+      if (saveErr) {
+        console.log("Error saving comment:", saveErr);
+        response.status(400).send("Unable to add comment");
+        return;
+      }
+      response.status(200).send(updatedPhoto);
+    });
+  });
+});
+
 const server = app.listen(3000, function () {
   const port = server.address().port;
   console.log(

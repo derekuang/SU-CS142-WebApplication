@@ -2,6 +2,7 @@ import React from "react";
 import { withRouter } from "react-router-dom";
 import {
   Box,
+  Button,
   Card,
   CardContent,
   CardMedia,
@@ -11,6 +12,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Unstable_Grid2";
@@ -79,6 +82,77 @@ function commonList(comments) {
 }
 
 /**
+ * Define CommentForm, the Material UI comment box rendered under each photo
+ * so a logged in user can add a comment.
+ */
+function CommentForm({ photoId, onCommentAdded }) {
+  const [comment, setComment] = React.useState("");
+  const [error, setError] = React.useState("");
+
+  const handleChange = (event) => {
+    setComment(event.target.value);
+    setError("");
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const trimmed = comment.trim();
+    if (!trimmed) {
+      setError("Comment cannot be empty.");
+      return;
+    }
+
+    axios
+      .post(`/commentsOfPhoto/${photoId}`, { comment: trimmed })
+      .then(() => {
+        setComment("");
+        setError("");
+        onCommentAdded();
+      })
+      .catch((err) => {
+        setError(
+          (err.response && err.response.data) ||
+            "Unable to add comment. Please try again.",
+        );
+      });
+  };
+
+  const canSubmit = Boolean(comment.trim());
+
+  return (
+    <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+      <Stack direction="row" spacing={1} alignItems="flex-start">
+        <TextField
+          name="comment"
+          label="Add a comment"
+          variant="outlined"
+          size="small"
+          fullWidth
+          multiline
+          maxRows={4}
+          value={comment}
+          onChange={handleChange}
+        />
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          disabled={!canSubmit}
+          sx={{ mt: 0.5 }}
+        >
+          Post
+        </Button>
+      </Stack>
+      {error ? (
+        <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+          {error}
+        </Typography>
+      ) : null}
+    </Box>
+  );
+}
+
+/**
  * Define UserPhotos, a React component of CS142 Project 5.
  */
 class UserPhotos extends React.Component {
@@ -86,14 +160,19 @@ class UserPhotos extends React.Component {
     super(props);
     this.state = {};
 
-    const userId = props.match.params.userId;
-    this.init(userId);
+    this.userId = props.match.params.userId;
+    this.init(this.userId);
   }
 
   async init(userId) {
     const photos = (await axios.get(`/photosOfUser/${userId}`)).data;
     this.setState({ photos });
   }
+
+  handleCommentAdded = () => {
+    // Reload the photos so the newly added comment is reflected.
+    this.init(this.userId);
+  };
 
   render() {
     const photos = this.state.photos;
@@ -119,6 +198,10 @@ class UserPhotos extends React.Component {
                     label={humanize(photo.date_time)}
                     color="primary"
                     variant="outlined"
+                  />
+                  <CommentForm
+                    photoId={photo._id}
+                    onCommentAdded={this.handleCommentAdded}
                   />
                   {photo.comments && photo.comments.length > 0 ? (
                     commonList(photo.comments)
