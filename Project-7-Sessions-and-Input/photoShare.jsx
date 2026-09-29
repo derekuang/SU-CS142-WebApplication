@@ -16,7 +16,8 @@ class PhotoShare extends React.Component {
     super(props);
     this.state = {
       user: null,
-      checkingSession: true
+      checkingSession: true,
+      photosRefreshToken: 0,
     };
   }
 
@@ -47,6 +48,13 @@ class PhotoShare extends React.Component {
     this.setState({ user: null });
   };
 
+  handlePhotoAdded = () => {
+    // Bump the token so the photos view refetches and shows the new photo.
+    this.setState((prevState) => ({
+      photosRefreshToken: prevState.photosRefreshToken + 1,
+    }));
+  };
+
   render() {
     return (
       <HashRouter>
@@ -70,8 +78,10 @@ class PhotoShare extends React.Component {
           content={
             loggedIn ? `Hi ${this.state.user.first_name}` : "Please Login"
           }
+          user={this.state.user}
           userIsLoggedIn={loggedIn}
           onLogout={this.handleLogout}
+          onPhotoAdded={this.handlePhotoAdded}
         />
       </Grid>
     );
@@ -111,7 +121,7 @@ class PhotoShare extends React.Component {
                 <UserDetail />
               </Route>
               <Route path="/photos/:userId">
-                <UserPhotos />
+                <UserPhotos refreshToken={this.state.photosRefreshToken} />
               </Route>
               <Route path="/users" component={UserList} />
               <Redirect to={`/users/${this.state.user._id}`} />

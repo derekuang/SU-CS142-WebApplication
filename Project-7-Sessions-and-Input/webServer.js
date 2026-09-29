@@ -42,6 +42,9 @@ const app = express();
 const session = require("express-session");
 const bodyParser = require("body-parser");
 const multer = require("multer");
+const path = require("path");
+const crypto = require("crypto");
+const fs = require("fs");
 
 // Load the Mongoose schema for User, Photo, and SchemaInfo
 const User = require("./schema/user.js");
@@ -62,6 +65,25 @@ mongoose.connect(dbUrl, {
 app.use(express.static(__dirname));
 app.use(session({secret: "secretKey", resave: false, saveUninitialized: false}));
 app.use(bodyParser.json());
+
+/**
+ * Multer storage configuration for photo uploads. Uploaded files are written
+ * into the images directory under a freshly generated unique name so that an
+ * upload never overwrites the seeded photos or a previous upload.
+ */
+const photoStorage = multer.diskStorage({
+  destination: path.join(__dirname, "images"),
+  filename: function (request, file, callback) {
+    const uniqueName =
+      Date.now() +
+      "-" +
+      crypto.randomBytes(8).toString("hex") +
+      path.extname(file.originalname);
+    callback(null, uniqueName);
+  },
+});
+
+const uploadPhoto = multer({ storage: photoStorage });
 
 /**
  * Route middleware that rejects the request unless a user is logged in. The
@@ -348,6 +370,46 @@ app.post("/commentsOfPhoto/:photo_id", requireLogin, function (request, response
     });
   });
 });
+
+/**
+ * URL /photos/new - Adds a new photo for the currently logged in user. The
+ * image is uploaded as a multipart form file named `uploadedphoto`. A request
+ * that carries no file is rejected with a 400.
+ */
+app.post(
+  "/photos/new",
+  requireLogin,
+  uploadPhoto.single("uploadedphoto"),
+  function (request, response) {
+    if (!request.file) {
+      response.status(400).send("No file uploaded");
+      return;
+    }
+
+    const photo = new Photo({
+      file_name: request.file.filename,
+      date_time: new Date(),
+      user_id: request.session.user_id,
+      comments: [],
+    });
+
+    photo.save(function (err, savedPhoto) {
+      if (err) {
+        console.log("Error saving photo:", err);
+        // The file was already written to disk by multer before this handler
+        // ran, so remove it to avoid leaving an orphaned image behind.
+        fs.unlink(request.file.path, function (unlinkErr) {
+          if (unlinkErr) {
+            console.log("Error removing orphaned photo file:", unlinkErr);
+          }
+        });
+        response.status(400).send("Unable to add photo");
+        return;
+      }
+      response.status(200).send(savedPhoto);
+    });
+  },
+);
 
 const server = app.listen(3000, function () {
   const port = server.address().port;

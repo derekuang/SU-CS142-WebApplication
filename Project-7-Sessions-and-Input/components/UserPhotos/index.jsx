@@ -169,6 +169,14 @@ class UserPhotos extends React.Component {
     this.setState({ photos });
   }
 
+  componentDidUpdate(prevProps) {
+    // Reload when the parent signals that a new photo was added elsewhere
+    // (e.g. via the Add Photo button in the TopBar).
+    if (prevProps.refreshToken !== this.props.refreshToken) {
+      this.init(this.userId);
+    }
+  }
+
   handleCommentAdded = () => {
     // Reload the photos so the newly added comment is reflected.
     this.init(this.userId);
