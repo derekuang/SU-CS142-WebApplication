@@ -15,7 +15,7 @@ services:
       - /workspace/compiled        # 匿名卷，保留编译后的文件
     ports:
       - "3000:3000"
-    command: ["sh", "-c", "node loadDatabase.js && npm run build:w & nodemon webServer.js"]
+    command: ["sh", "-c", "npm run build:w & nodemon webServer.js"]
 
   mongo:
     image: mongo:6.0
