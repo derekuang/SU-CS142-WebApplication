@@ -1,5 +1,5 @@
 .continue
 .vscode
-test
 node_modules
 compiled
+images
