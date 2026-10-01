@@ -264,6 +264,82 @@ app.get("/admin/currentUser", requireLogin, function (request, response) {
 });
 
 /**
+ * URL /user - Registers a new user. The request body is a JSON object with the
+ * properties (login_name, password, first_name, last_name, location,
+ * description, occupation). The login_name must be specified and not already
+ * used, and the password, first_name, and last_name must be non-empty; the
+ * remaining fields may be empty. On success the newly created User (without its
+ * password) is returned. On failure a 400 with a message describing the problem
+ * is returned so the client can tell the user exactly what went wrong.
+ */
+app.post("/user", function (request, response) {
+  const body = request.body || {};
+  const loginName = body.login_name;
+  const password = body.password;
+  const firstName = body.first_name;
+  const lastName = body.last_name;
+  const location = body.location;
+  const description = body.description;
+  const occupation = body.occupation;
+
+  if (typeof loginName !== "string" || loginName.trim() === "") {
+    response.status(400).send("A user name is required");
+    return;
+  }
+
+  if (typeof password !== "string" || password === "") {
+    response.status(400).send("A password is required");
+    return;
+  }
+
+  if (typeof firstName !== "string" || firstName.trim() === "") {
+    response.status(400).send("A first name is required");
+    return;
+  }
+
+  if (typeof lastName !== "string" || lastName.trim() === "") {
+    response.status(400).send("A last name is required");
+    return;
+  }
+
+  User.findOne({ login_name: loginName }, function (err, existingUser) {
+    if (err) {
+      console.log("Error checking login name:", err);
+      response.status(400).send("Registration failed. Please try again.");
+      return;
+    }
+
+    if (existingUser) {
+      response.status(400).send("That user name is already taken");
+      return;
+    }
+
+    User.create(
+      {
+        login_name: loginName,
+        password: password,
+        first_name: firstName,
+        last_name: lastName,
+        location: location || "",
+        description: description || "",
+        occupation: occupation || "",
+      },
+      function (createErr, createdUser) {
+        if (createErr) {
+          console.log("Error creating user:", createErr);
+          response.status(400).send("Registration failed. Please try again.");
+          return;
+        }
+
+        const newUser = createdUser.toObject();
+        delete newUser.password;
+        response.status(200).send(newUser);
+      },
+    );
+  });
+});
+
+/**
  * URL /user/list - Returns all the User objects.
  */
 app.get("/user/list", requireLogin, function (request, response) {

@@ -10,6 +10,7 @@
 }
 
 .cs142-main-grid-item {
+  box-sizing: border-box;
   height: calc(100vh - 85px);
   padding: 10px;
 }
