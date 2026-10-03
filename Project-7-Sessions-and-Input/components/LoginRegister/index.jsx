@@ -69,8 +69,8 @@ class LoginRegister extends React.Component {
 
     axios
       .post("/admin/login", {
-        parameter_name: loginName,
-        parameter_password: password,
+        login_name: loginName,
+        password: password,
       })
       .then((response) => {
         this.setState({ loginError: "" });

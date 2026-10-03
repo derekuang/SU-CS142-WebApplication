@@ -77,11 +77,19 @@ app.use(bodyParser.json());
 const photoStorage = multer.diskStorage({
   destination: path.join(__dirname, "images"),
   filename: function (request, file, callback) {
+    // Keep the client-supplied name in the stored file name so the uploader can
+    // recognize the photo it just sent, but sanitize it and prefix a unique
+    // token so two uploads with the same name never collide and no path
+    // separators can escape the images directory.
+    const originalName = path
+      .basename(file.originalname)
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
     const uniqueName =
       Date.now() +
       "-" +
       crypto.randomBytes(8).toString("hex") +
-      path.extname(file.originalname);
+      "-" +
+      originalName;
     callback(null, uniqueName);
   },
 });
@@ -190,16 +198,16 @@ app.get("/test/:p1", function (request, response) {
 });
 
 /**
- * URL /admin/login - Logs in the user with the given parameter_name and
- * parameter_password fields.
+ * URL /admin/login - Logs in the user with the given login_name and
+ * password fields.
  *
  * On success the user's _id is stored in the session and the User object
  * (without the password) is returned. On failure a 400 error with a message is
  * returned so the client can prompt the user to retry.
  */
 app.post("/admin/login", function (request, response) {
-  const loginName = request.body.parameter_name;
-  const password = request.body.parameter_password;
+  const loginName = request.body.login_name;
+  const password = request.body.password;
 
   User.findOne({ login_name: loginName }, function (err, user) {
     if (err) {
