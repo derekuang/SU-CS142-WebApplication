@@ -51,6 +51,9 @@ const User = require("./schema/user.js");
 const Photo = require("./schema/photo.js");
 const SchemaInfo = require("./schema/schemaInfo.js");
 
+// Salted password helpers used to store and verify user credentials.
+const cs142password = require("./cs142password.js");
+
 // XXX - Your submission should work without this line. Comment out or delete
 // this line for tests and before submission!
 const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/cs142project6";
@@ -205,7 +208,7 @@ app.post("/admin/login", function (request, response) {
       return;
     }
 
-    if (!user || user.password !== password) {
+    if (!user || !cs142password.doesPasswordMatch(user.hash, user.salt, password)) {
       response
         .status(400)
         .send("Invalid user name or password. Please try again.");
@@ -215,7 +218,8 @@ app.post("/admin/login", function (request, response) {
     request.session.user_id = user._id;
 
     const loggedInUser = user.toObject();
-    delete loggedInUser.password;
+    delete loggedInUser.salt;
+    delete loggedInUser.hash;
     response.status(200).send(loggedInUser);
   });
 });
@@ -258,7 +262,8 @@ app.get("/admin/currentUser", requireLogin, function (request, response) {
     }
 
     const loggedInUser = user.toObject();
-    delete loggedInUser.password;
+    delete loggedInUser.salt;
+    delete loggedInUser.hash;
     response.status(200).send(loggedInUser);
   });
 });
@@ -314,10 +319,13 @@ app.post("/user", function (request, response) {
       return;
     }
 
+    const passwordEntry = cs142password.makePasswordEntry(password);
+
     User.create(
       {
         login_name: loginName,
-        password: password,
+        salt: passwordEntry.salt,
+        hash: passwordEntry.hash,
         first_name: firstName,
         last_name: lastName,
         location: location || "",
@@ -332,7 +340,8 @@ app.post("/user", function (request, response) {
         }
 
         const newUser = createdUser.toObject();
-        delete newUser.password;
+        delete newUser.salt;
+        delete newUser.hash;
         response.status(200).send(newUser);
       },
     );
@@ -365,7 +374,7 @@ app.get("/user/:id", requireLogin, function (request, response) {
       return;
     }
     response.status(200).send(user);
-  }).select("-__v -login_name -password");
+  }).select("-__v -login_name -salt -hash");
 });
 
 /**
