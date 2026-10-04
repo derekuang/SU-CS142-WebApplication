@@ -7,7 +7,7 @@
   "scripts": {
     "build": "webpack --devtool eval-cheap-module-source-map",
     "build:w": "webpack --devtool eval-cheap-module-source-map --watch",
-    "lint": "eslint webServer.js loadDatabase.js *.jsx components/*/*.jsx || exit 0"
+    "lint": "eslint webServer.js loadDatabase.js \"*.jsx\" \"components/**/*.jsx\" \"client/**/*.js\" \"client/**/*.jsx\" \"server/**/*.js\" || exit 0"
   },
   "author": "Mendel Rosenblum <mendel@cs.stanford.edu> ",
   "license": "ISC",

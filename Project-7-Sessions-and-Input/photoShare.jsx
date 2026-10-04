@@ -2,7 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { Grid, Paper } from "@mui/material";
 import { HashRouter, Redirect, Route, Switch } from "react-router-dom";
-import axios from "axios";
+
+import { currentUser, logout } from "./client/model/api/sessionApi.js";
+import { getState, setState, subscribe } from "./client/model/store/session.js";
 
 import "./styles/main.css";
 import TopBar from "./components/TopBar";
@@ -11,48 +13,71 @@ import UserList from "./components/UserList";
 import UserPhotos from "./components/UserPhotos";
 import LoginRegister from "./components/LoginRegister";
 
+// Store actions shared with the child views. They live at module scope because
+// they only talk to the session store and need no component instance.
+function handleLogin(user) {
+  setState({ user });
+}
+
+function handleLogout() {
+  logout().catch(() => {});
+  setState({ user: null });
+}
+
+function handlePhotoAdded() {
+  // Bump the token so the photos view refetches and shows the new photo.
+  setState({ photosRefreshToken: getState().photosRefreshToken + 1 });
+}
+
+// The login/register view is pure markup that only depends on the shared login
+// action, so it needs no component instance.
+function renderLoginForm() {
+  return (
+    <Grid item xs={12}>
+      <Paper className="cs142-main-grid-item">
+        <Switch>
+          <Route path="/login-register">
+            <LoginRegister onLogin={handleLogin} />
+          </Route>
+          <Redirect to="/login-register" />
+        </Switch>
+      </Paper>
+    </Grid>
+  );
+}
+
 class PhotoShare extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {
-      user: null,
-      checkingSession: true,
-      photosRefreshToken: 0,
-    };
+    this.state = getState();
   }
 
   componentDidMount() {
+    // Mirror the app state store so a change anywhere re-renders this shell.
+    this.unsubscribeStore = subscribe((state) => {
+      this.setState(state);
+    });
+
     // Ask the server who is logged in from the session cookie so that a page
     // reload (e.g. F5) restores the login state instead of dropping the user
     // back to the login screen.
-    axios
-      .get("/admin/currentUser")
-      .then((response) => {
-        this.setState({ user: response.data, checkingSession: false });
+    currentUser()
+      .then((user) => {
+        setState({ user, checkingSession: false });
       })
       .catch(() => {
-        this.setState({ user: null, checkingSession: false });
+        setState({ user: null, checkingSession: false });
       });
+  }
+
+  componentWillUnmount() {
+    if (this.unsubscribeStore) {
+      this.unsubscribeStore();
+    }
   }
 
   isUserLoggedIn = () => {
     return this.state.user !== null;
-  };
-
-  handleLogin = (user) => {
-    this.setState({ user });
-  };
-
-  handleLogout = () => {
-    axios.post("/admin/logout").catch(() => {});
-    this.setState({ user: null });
-  };
-
-  handlePhotoAdded = () => {
-    // Bump the token so the photos view refetches and shows the new photo.
-    this.setState((prevState) => ({
-      photosRefreshToken: prevState.photosRefreshToken + 1,
-    }));
   };
 
   render() {
@@ -80,8 +105,8 @@ class PhotoShare extends React.Component {
           }
           user={this.state.user}
           userIsLoggedIn={loggedIn}
-          onLogout={this.handleLogout}
-          onPhotoAdded={this.handlePhotoAdded}
+          onLogout={handleLogout}
+          onPhotoAdded={handlePhotoAdded}
         />
       </Grid>
     );
@@ -100,7 +125,7 @@ class PhotoShare extends React.Component {
     }
 
     if (!this.isUserLoggedIn()) {
-      return this.renderLoginForm();
+      return renderLoginForm();
     }
 
     return this.renderLoggedIn();
@@ -129,21 +154,6 @@ class PhotoShare extends React.Component {
           </Paper>
         </Grid>
       </React.Fragment>
-    );
-  }
-
-  renderLoginForm() {
-    return (
-      <Grid item xs={12}>
-        <Paper className="cs142-main-grid-item">
-          <Switch>
-            <Route path="/login-register">
-              <LoginRegister onLogin={this.handleLogin} />
-            </Route>
-            <Redirect to="/login-register" />
-          </Switch>
-        </Paper>
-      </Grid>
     );
   }
 }

@@ -1,54 +1,20 @@
 import React from "react";
-import {
-  Box,
-  Divider,
-  Link,
-  List,
-  ListItem,
-  ListItemText,
-} from "@mui/material";
-import axios from "axios";
+
+import useUserList from "../../client/controllers/useUserList.js";
+import UserListView from "../../client/views/UserListView.jsx";
 
 import "./styles.css";
 
 /**
  * Define UserList, a React component of CS142 Project 5.
+ *
+ * Thin controller: fetches the users via the hook and hands them to the
+ * presentational view.
  */
-class UserList extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {};
-    axios.get("/user/list").then((response) => {
-      this.setState({ users: response.data });
-    });
-  }
+function UserList() {
+  const { users } = useUserList();
 
-  render() {
-    const users = this.state.users;
-
-    if (!users) {
-      return <Box>Loading...</Box>;
-    }
-
-    return (
-      <div>
-        <List component="nav">
-          {this.state.users.map((user) => {
-            return (
-              <Link href={`#/users/${user._id}`} key={user._id}>
-                <ListItem>
-                  <ListItemText
-                    primary={`${user.first_name} ${user.last_name}`}
-                  />
-                </ListItem>
-                <Divider />
-              </Link>
-            );
-          })}
-        </List>
-      </div>
-    );
-  }
+  return <UserListView users={users} />;
 }
 
 export default UserList;

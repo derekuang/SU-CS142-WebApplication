@@ -4,6 +4,7 @@
     "node_modules/**/node_modules",
     "mainController.js",
     "components",
+    "client",
     "test",
     "schema",
     "modelData"
