@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Mocha test of CS142 Project 7 web API. Run using this command:
+ * Mocha test of CS142 Project 8 web API. Run using this command:
  *   node_modules/.bin/mocha serverApiTest.js
  */
 

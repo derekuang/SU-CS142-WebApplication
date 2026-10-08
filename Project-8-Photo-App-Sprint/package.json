@@ -1,8 +1,8 @@
 {
-  "name": "project6",
+  "name": "project8",
   "version": "1.0.0",
   "private": true,
-  "description": "CS142 Project 6: Appserver and Database (React)",
+  "description": "CS142 Project 8: Photo App Sprint",
   "main": "webServer.js",
   "scripts": {
     "build": "webpack --devtool eval-cheap-module-source-map",

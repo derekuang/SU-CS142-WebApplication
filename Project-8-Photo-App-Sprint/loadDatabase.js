@@ -1,10 +1,10 @@
 /**
- * This Node.js program loads the CS142 Project 7 model data into Mongoose
+ * This Node.js program loads the CS142 Project 8 model data into Mongoose
  * defined objects in a MongoDB database. It can be run with the command:
  *     node loadDatabase.js
  * Be sure to have an instance of the MongoDB running on the localhost.
  *
- * This script loads the data into the MongoDB database named 'cs142project6'.
+ * This script loads the data into the MongoDB database named 'cs142project8'.
  * In loads into collections named User and Photos. The Comments are added in
  * the Photos of the comments. Any previous objects in those collections are
  * discarded.
@@ -12,7 +12,7 @@
 
 // We use the Mongoose to define the schema stored in MongoDB.
 const mongoose = require("mongoose");
-const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/cs142project6";
+const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/cs142project8";
 mongoose.Promise = require("bluebird");
 mongoose.set("strictQuery", false);
 mongoose.connect(dbUrl, {

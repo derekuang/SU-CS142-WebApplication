@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Model data for CS142 Project 5 - the photo sharing site.
+ * Model data for CS142 Project 8 - the photo sharing site.
  * This module returns an object called cs142Models with the following
  * functions:
  *

@@ -29,7 +29,7 @@ const routes = require("./server/routes/index.js");
 
 // XXX - Your submission should work without this line. Comment out or delete
 // this line for tests and before submission!
-const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/cs142project6";
+const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/cs142project8";
 mongoose.set("strictQuery", false);
 mongoose.connect(dbUrl, {
   useNewUrlParser: true,

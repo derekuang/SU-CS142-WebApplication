@@ -3,12 +3,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cs142-p7
+    container_name: cs142-p8
     working_dir: /workspace
     depends_on:
       - mongo
     environment:
-      - MONGO_URL=mongodb://mongo:27017/cs142project7
+      - MONGO_URL=mongodb://mongo:27017/cs142project8
     volumes:
       - .:/workspace               # 代码挂载
       - /workspace/node_modules    # 匿名卷，保留镜像中的 node_modules，避免被本地覆盖
@@ -19,7 +19,7 @@ services:
 
   mongo:
     image: mongo:6.0
-    container_name: cs142-p7-mongo
+    container_name: cs142-p8-mongo
     volumes:
       - mongo-data:/data/db
 

@@ -6,7 +6,7 @@ import UserListView from "../../client/views/UserListView.jsx";
 import "./styles.css";
 
 /**
- * Define UserList, a React component of CS142 Project 5.
+ * Define UserList, a React component of CS142 Project 8.
  *
  * Thin controller: fetches the users via the hook and hands them to the
  * presentational view.
