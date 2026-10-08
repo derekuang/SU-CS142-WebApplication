@@ -14,17 +14,11 @@ import {
  * Presentational views for logging in and registering.
  *
  * They receive all form values, messages, and handlers as props and perform no
- * data fetching themselves. The `mode` prop selects which form is shown.
+ * data fetching themselves. The `mode` prop selects which form is shown; `login`
+ * and `registration` are the two form bundles produced by the controller.
  */
 
-function LoginForm({
-  loginName,
-  password,
-  loginError,
-  canSubmit,
-  onChange,
-  onSubmit,
-}) {
+function LoginForm({ loginName, password, error, canSubmit, onChange, onSubmit }) {
   return (
     <Box
       component="form"
@@ -48,9 +42,9 @@ function LoginForm({
           value={password}
           onChange={onChange}
         />
-        {loginError ? (
+        {error ? (
           <Typography variant="body2" color="error">
-            {loginError}
+            {error}
           </Typography>
         ) : null}
         <Button
@@ -66,7 +60,7 @@ function LoginForm({
   );
 }
 
-function RegisterForm({ registration, error, success, onChange, onSubmit }) {
+function RegisterForm({ values, error, success, onChange, onSubmit }) {
   return (
     <Box
       component="form"
@@ -80,7 +74,7 @@ function RegisterForm({ registration, error, success, onChange, onSubmit }) {
           label="User name"
           variant="outlined"
           required
-          value={registration.login_name}
+          value={values.login_name}
           onChange={onChange}
         />
         <TextField
@@ -89,7 +83,7 @@ function RegisterForm({ registration, error, success, onChange, onSubmit }) {
           type="password"
           variant="outlined"
           required
-          value={registration.password}
+          value={values.password}
           onChange={onChange}
         />
         <TextField
@@ -98,7 +92,7 @@ function RegisterForm({ registration, error, success, onChange, onSubmit }) {
           type="password"
           variant="outlined"
           required
-          value={registration.confirmPassword}
+          value={values.confirmPassword}
           onChange={onChange}
         />
         <TextField
@@ -106,7 +100,7 @@ function RegisterForm({ registration, error, success, onChange, onSubmit }) {
           label="First name"
           variant="outlined"
           required
-          value={registration.first_name}
+          value={values.first_name}
           onChange={onChange}
         />
         <TextField
@@ -114,28 +108,28 @@ function RegisterForm({ registration, error, success, onChange, onSubmit }) {
           label="Last name"
           variant="outlined"
           required
-          value={registration.last_name}
+          value={values.last_name}
           onChange={onChange}
         />
         <TextField
           name="location"
           label="Location"
           variant="outlined"
-          value={registration.location}
+          value={values.location}
           onChange={onChange}
         />
         <TextField
           name="description"
           label="Description"
           variant="outlined"
-          value={registration.description}
+          value={values.description}
           onChange={onChange}
         />
         <TextField
           name="occupation"
           label="Occupation"
           variant="outlined"
-          value={registration.occupation}
+          value={values.occupation}
           onChange={onChange}
         />
         {error ? <Alert severity="error">{error}</Alert> : null}
@@ -148,21 +142,7 @@ function RegisterForm({ registration, error, success, onChange, onSubmit }) {
   );
 }
 
-function LoginRegisterView({
-  mode,
-  onModeChange,
-  loginName,
-  password,
-  loginError,
-  canLogin,
-  onLoginChange,
-  onLoginSubmit,
-  registration,
-  registrationError,
-  registrationSuccess,
-  onRegisterChange,
-  onRegisterSubmit,
-}) {
+function LoginRegisterView({ mode, onModeChange, login, registration }) {
   return (
     <Box className="cs142-login-register">
       <Box className="cs142-login-register-tabs">
@@ -178,22 +158,9 @@ function LoginRegisterView({
       </Box>
       <Box className="cs142-login-register-body">
         {mode === "login" ? (
-          <LoginForm
-            loginName={loginName}
-            password={password}
-            loginError={loginError}
-            canSubmit={canLogin}
-            onChange={onLoginChange}
-            onSubmit={onLoginSubmit}
-          />
+          <LoginForm {...login} />
         ) : (
-          <RegisterForm
-            registration={registration}
-            error={registrationError}
-            success={registrationSuccess}
-            onChange={onRegisterChange}
-            onSubmit={onRegisterSubmit}
-          />
+          <RegisterForm {...registration} />
         )}
       </Box>
     </Box>
