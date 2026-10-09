@@ -27,10 +27,12 @@ function TopBar(props) {
     <TopBarView
       content={props.content}
       userIsLoggedIn={props.userIsLoggedIn}
+      advancedFeatures={props.advancedFeatures}
       showAddPhoto={showAddPhoto}
       version={version}
       message={message}
       severity={severity}
+      onToggleAdvancedFeatures={props.onToggleAdvancedFeatures}
       onLogout={props.onLogout}
       onFileSelected={onFileSelected}
       onCloseMessage={onCloseMessage}

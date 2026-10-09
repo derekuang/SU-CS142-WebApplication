@@ -3,8 +3,12 @@
  *
  * A tiny dependency-free observable holding the app-wide state that used to
  * live in the top-level PhotoShare component: the logged in user, whether the
- * initial session check is still in flight, and a token that tells the photos
- * view to refetch after a new photo is added.
+ * initial session check is still in flight, a token that tells the photos view
+ * to refetch after a new photo is added, and whether the optional advanced
+ * features are enabled.
+ *
+ * `advancedFeatures` is deliberately not persisted: the assignment requires it
+ * to start disabled on every app launch.
  *
  * `subscribe` returns an unsubscribe function so React components can clean up
  * on unmount.
@@ -16,6 +20,7 @@ let state = {
   user: null,
   checkingSession: true,
   photosRefreshToken: 0,
+  advancedFeatures: false,
 };
 
 /**

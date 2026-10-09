@@ -25,6 +25,9 @@ import relativeTime from "dayjs/plugin/relativeTime";
  * Renders only what it is given: `photos` (or a loading placeholder) and an
  * `onAddComment(photoId, text)` handler that performs the actual request. It
  * performs no data fetching itself.
+ *
+ * `advancedFeatures` selects the layout: off is the original grid of every
+ * photo, on is a single-photo viewer with prev/next stepper controls.
  */
 
 function humanize(dateTime) {
@@ -152,11 +155,35 @@ function CommentForm({ photoId, onSubmit }) {
   );
 }
 
-function UserPhotosView({ photos, onAddComment }) {
-  if (!photos) {
-    return <Box>Loading...</Box>;
-  }
+/** Prev/next controls for the single-photo viewer. */
+function PhotoStepper({ index, total, onPrev, onNext }) {
+  return (
+    <Stack
+      direction="row"
+      spacing={2}
+      justifyContent="center"
+      sx={{ mt: 2, mb: 1 }}
+    >
+      <Button
+        variant="outlined"
+        onClick={onPrev}
+        disabled={index <= 0}
+      >
+        Previous
+      </Button>
+      <Button
+        variant="outlined"
+        onClick={onNext}
+        disabled={index >= total - 1}
+      >
+        Next
+      </Button>
+    </Stack>
+  );
+}
 
+/** The original view: every photo laid out in a responsive grid. */
+function PhotoGridView({ photos, onAddComment }) {
   return (
     <Grid container spacing={2} sx={{ height: "100%", overflowY: "auto" }}>
       {photos.map((photo) => {
@@ -194,6 +221,87 @@ function UserPhotosView({ photos, onAddComment }) {
       })}
     </Grid>
   );
+}
+
+/** Advanced view: one photo at a time with prev/next stepper controls. */
+function PhotoStepperView({ photos, currentIndex, onAddComment, onPrev, onNext }) {
+  if (photos.length === 0) {
+    return <Typography color="text.secondary">No photos yet</Typography>;
+  }
+
+  const photo = photos[currentIndex];
+
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflowY: "auto",
+      }}
+    >
+      <Card sx={{ p: 2 }}>
+        <CardMedia
+          component="img"
+          alt={photo.file_name}
+          src={`images/${photo.file_name}`}
+          sx={{
+            width: "100%",
+            maxHeight: { xs: 300, md: 500 },
+            objectFit: "contain",
+          }}
+        />
+        <CardContent variant="body2">
+          <Chip
+            label={humanize(photo.date_time)}
+            color="primary"
+            variant="outlined"
+          />
+          <CommentForm photoId={photo._id} onSubmit={onAddComment} />
+          {photo.comments && photo.comments.length > 0 ? (
+            commonList(photo.comments)
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              No comments yet
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+      <PhotoStepper
+        index={currentIndex}
+        total={photos.length}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
+    </Box>
+  );
+}
+
+function UserPhotosView({
+  advancedFeatures,
+  photos,
+  currentIndex,
+  onAddComment,
+  onPrev,
+  onNext,
+}) {
+  if (!photos) {
+    return <Box>Loading...</Box>;
+  }
+
+  if (advancedFeatures) {
+    return (
+      <PhotoStepperView
+        photos={photos}
+        currentIndex={currentIndex}
+        onAddComment={onAddComment}
+        onPrev={onPrev}
+        onNext={onNext}
+      />
+    );
+  }
+
+  return <PhotoGridView photos={photos} onAddComment={onAddComment} />;
 }
 
 export default UserPhotosView;

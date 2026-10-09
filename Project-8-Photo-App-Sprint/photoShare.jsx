@@ -29,6 +29,11 @@ function handlePhotoAdded() {
   setState({ photosRefreshToken: getState().photosRefreshToken + 1 });
 }
 
+function handleToggleAdvancedFeatures() {
+  // The TopBar checkbox drives this. Starts false on every launch.
+  setState({ advancedFeatures: !getState().advancedFeatures });
+}
+
 // The login/register view is pure markup that only depends on the shared login
 // action, so it needs no component instance.
 function renderLoginForm() {
@@ -105,6 +110,8 @@ class PhotoShare extends React.Component {
           }
           user={this.state.user}
           userIsLoggedIn={loggedIn}
+          advancedFeatures={this.state.advancedFeatures}
+          onToggleAdvancedFeatures={handleToggleAdvancedFeatures}
           onLogout={handleLogout}
           onPhotoAdded={handlePhotoAdded}
         />
@@ -145,8 +152,11 @@ class PhotoShare extends React.Component {
               <Route path="/users/:userId">
                 <UserDetail />
               </Route>
-              <Route path="/photos/:userId">
-                <UserPhotos refreshToken={this.state.photosRefreshToken} />
+              <Route path="/photos/:userId/:photoId?">
+                <UserPhotos
+                  advancedFeatures={this.state.advancedFeatures}
+                  refreshToken={this.state.photosRefreshToken}
+                />
               </Route>
               <Route path="/users" component={UserList} />
               <Redirect to={`/users/${this.state.user._id}`} />

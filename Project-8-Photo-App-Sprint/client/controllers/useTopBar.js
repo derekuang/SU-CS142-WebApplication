@@ -28,8 +28,9 @@ function useTopBar(pathname, user, onPhotoAdded) {
   }, []);
 
   // The Add Photo button only makes sense on the logged in user's own photo
-  // page, i.e. when the route is /photos/:userId and userId is that user.
-  const match = pathname.match(/^\/photos\/([^/]+)$/);
+  // page, i.e. when the route is /photos/:userId (optionally with a specific
+  // photo id) and userId is that user.
+  const match = pathname.match(/^\/photos\/([^/]+)(?:\/[^/]+)?$/);
   const showAddPhoto = Boolean(user && match && match[1] === user._id);
 
   const onFileSelected = useCallback(

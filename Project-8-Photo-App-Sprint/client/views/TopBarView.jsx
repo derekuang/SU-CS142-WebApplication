@@ -4,6 +4,8 @@ import {
   AppBar,
   Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   Link,
   Snackbar,
   Toolbar,
@@ -17,16 +19,19 @@ const myName = "Derekuang";
  *
  * Receives everything it shows as props: the schema `version`, the login
  * `content`, whether the user is logged in, whether the Add Photo button should
- * appear, and the transient snackbar `message`/`severity`. User interactions
- * are delegated to the provided callbacks; no data fetching happens here.
+ * appear, the advanced-features toggle, and the transient snackbar
+ * `message`/`severity`. User interactions are delegated to the provided
+ * callbacks; no data fetching happens here.
  */
 function TopBarView({
   content,
   userIsLoggedIn,
+  advancedFeatures,
   showAddPhoto,
   version,
   message,
   severity,
+  onToggleAdvancedFeatures,
   onLogout,
   onFileSelected,
   onCloseMessage,
@@ -39,6 +44,22 @@ function TopBarView({
             {`${myName} v${version}`}
           </Typography>
           <Box display="flex" alignItems="center">
+            {userIsLoggedIn ? (
+              <FormControlLabel
+                sx={{ mr: 2 }}
+                control={
+                  (
+                    <Checkbox
+                      color="default"
+                      sx={{ color: "inherit" }}
+                      checked={Boolean(advancedFeatures)}
+                      onChange={onToggleAdvancedFeatures}
+                    />
+                  )
+                }
+                label="Advanced Features"
+              />
+            ) : null}
             {showAddPhoto ? (
               <Button component="label" color="inherit" sx={{ mr: 2 }}>
                 Add Photo
