@@ -12,8 +12,8 @@ import "./styles.css";
  * Thin controller: fetches the routed user's photos (and provides the comment
  * action) and hands them to the presentational view. When advanced features are
  * enabled it also derives the currently selected photo from the optional
- * `photoId` route param and exposes prev/next navigation that pushes the
- * neighbouring id into the URL.
+ * `photoId` route param and exposes prev/next navigation that replaces the
+ * neighbouring id in the URL (so stepping does not pile up history entries).
  */
 function UserPhotos(props) {
   const { userId, photoId } = props.match.params;
@@ -33,7 +33,7 @@ function UserPhotos(props) {
 
   const goToIndex = (index) => {
     if (index >= 0 && index < photos.length) {
-      props.history.push(`/photos/${userId}/${photos[index]._id}`);
+      props.history.replace(`/photos/${userId}/${photos[index]._id}`);
     }
   };
 
