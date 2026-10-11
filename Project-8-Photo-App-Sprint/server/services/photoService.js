@@ -71,7 +71,29 @@ function addComment(photoId, userId, rawText) {
   );
 }
 
+/**
+ * Build the "usage" summary shown on a user's detail page: their most recent
+ * photo and their most commented photo.
+ *
+ * The selection (sorting/counting) is deliberately performed by the repository
+ * queries, so this service only orchestrates them and normalizes a missing
+ * photo to null.
+ *
+ * @param {string} userId
+ * @returns {Promise<{recentPhoto: object|null, mostCommentedPhoto: object|null}>}
+ */
+function getUsage(userId) {
+  return Promise.all([
+    photoRepo.findMostRecentByUser(userId),
+    photoRepo.findMostCommentedByUser(userId),
+  ]).then(([recentPhoto, mostCommented]) => ({
+    recentPhoto: recentPhoto || null,
+    mostCommentedPhoto: mostCommented[0] || null,
+  }));
+}
+
 module.exports = {
   shapePhotos,
   addComment,
+  getUsage,
 };

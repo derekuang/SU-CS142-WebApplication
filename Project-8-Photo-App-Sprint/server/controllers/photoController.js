@@ -63,7 +63,26 @@ function addPhoto(request, response) {
     });
 }
 
+/**
+ * GET /usageOfUser/:id - Return the user's usage summary: their most recent
+ * photo and their most commented photo, as shaped by the photo service.
+ */
+function getUsage(request, response) {
+  const id = request.params.id;
+
+  photoService
+    .getUsage(id)
+    .then((usage) => {
+      response.status(200).send(usage);
+    })
+    .catch((err) => {
+      console.log("Error finding photo usage:", err);
+      response.status(400).send(err);
+    });
+}
+
 module.exports = {
   photosOfUser,
   addPhoto,
+  getUsage,
 };

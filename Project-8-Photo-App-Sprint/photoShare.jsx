@@ -34,6 +34,13 @@ function handleToggleAdvancedFeatures() {
   setState({ advancedFeatures: !getState().advancedFeatures });
 }
 
+function handleOpenStepper() {
+  // A usage thumbnail on the detail page was clicked: turn the photo stepper
+  // on so the linked photo (from the route) opens in it, keeping the TopBar
+  // checkbox in sync.
+  setState({ advancedFeatures: true });
+}
+
 // The login/register view is pure markup that only depends on the shared login
 // action, so it needs no component instance.
 function renderLoginForm() {
@@ -150,7 +157,7 @@ class PhotoShare extends React.Component {
           <Paper className="cs142-main-grid-item">
             <Switch>
               <Route path="/users/:userId">
-                <UserDetail />
+                <UserDetail onOpenStepper={handleOpenStepper} />
               </Route>
               <Route path="/photos/:userId/:photoId?">
                 <UserPhotos

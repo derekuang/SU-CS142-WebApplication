@@ -6,6 +6,8 @@
  * methods so query details stay out of the request-handling code.
  */
 
+const mongoose = require("mongoose");
+
 const Photo = require("../../schema/photo.js");
 
 /**
@@ -39,6 +41,55 @@ function findById(photoId) {
 }
 
 /**
+ * Find the user's most recently uploaded photo.
+ *
+ * @param {string} userId
+ * @returns {Promise<object|null>} The newest Photo document (file_name,
+ *   date_time only), or null when the user has no photos.
+ */
+function findMostRecentByUser(userId) {
+  return Photo.findOne({ user_id: userId })
+    .sort({ date_time: -1 })
+    .select("file_name date_time")
+    .exec();
+}
+
+/**
+ * Find the user's photo with the most comments.
+ *
+ * The aggregation counts each photo's comments and sorts by that count, newest
+ * first as a deterministic tie-breaker so an equal-count draw always resolves
+ * to the same photo.
+ *
+ * @param {string} userId
+ * @returns {Promise<object|null>} The most commented Photo document
+ *   (file_name, date_time, commentCount only), or null when the user has no
+ *   photos.
+ */
+function findMostCommentedByUser(userId) {
+  // Guard against a malformed id: casting it would throw before we can return
+  // a promise, so treat it as "no photos".
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return Promise.resolve([]);
+  }
+
+  return Photo.aggregate([
+    { $match: { user_id: mongoose.Types.ObjectId(userId) } },
+    { $addFields: { commentCount: { $size: { $ifNull: ["$comments", []] } } } },
+    { $sort: { commentCount: -1, date_time: -1 } },
+    { $limit: 1 },
+    {
+      $project: {
+        _id: 1,
+        file_name: 1,
+        date_time: 1,
+        commentCount: 1,
+      },
+    },
+  ]).exec();
+}
+
+/**
  * Create a new photo.
  *
  * @param {object} photoData Fields for the new photo (file_name, user_id, ...).
@@ -64,6 +115,8 @@ function save(photo) {
 module.exports = {
   findByUser,
   findById,
+  findMostRecentByUser,
+  findMostCommentedByUser,
   create,
   save,
 };

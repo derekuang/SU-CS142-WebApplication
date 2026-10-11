@@ -19,6 +19,18 @@ export function getPhotosOfUser(id) {
 }
 
 /**
+ * Fetch a user's usage summary: their most recent photo and their most
+ * commented photo (each with `_id`, `file_name`, and `date_time`; the most
+ * commented one also carries `commentCount`).
+ *
+ * @param {string} id The user's _id.
+ * @returns {Promise<{recentPhoto: object|null, mostCommentedPhoto: object|null}>}
+ */
+export function getUserUsage(id) {
+  return axios.get(`/usageOfUser/${id}`).then((response) => response.data);
+}
+
+/**
  * Upload a photo for the logged in user. The file is sent as multipart form
  * data under the field name the server expects.
  *

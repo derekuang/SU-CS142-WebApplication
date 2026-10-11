@@ -16,8 +16,8 @@ import {
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Unstable_Grid2";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
+
+import humanize from "../utils/humanize.js";
 
 /**
  * Presentational view for a user's photos and their comments.
@@ -29,11 +29,6 @@ import relativeTime from "dayjs/plugin/relativeTime";
  * `advancedFeatures` selects the layout: off is the original grid of every
  * photo, on is a single-photo viewer with prev/next stepper controls.
  */
-
-function humanize(dateTime) {
-  dayjs.extend(relativeTime);
-  return dayjs().to(dayjs(dateTime));
-}
 
 function commonList(comments) {
   return (
