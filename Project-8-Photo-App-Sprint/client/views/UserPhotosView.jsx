@@ -78,7 +78,7 @@ const mentionsStyle = {
   },
 };
 
-function commonList(comments) {
+function commentList(comments) {
   return (
     <List dense>
       {comments.map((comment) => {
@@ -268,7 +268,7 @@ function PhotoGridView({ photos, onAddComment, mentionSuggestions }) {
                   onSubmit={onAddComment}
                 />
                 {photo.comments && photo.comments.length > 0 ? (
-                  commonList(photo.comments)
+                  commentList(photo.comments)
                 ) : (
                   <Typography
                     variant="body2"
@@ -334,7 +334,7 @@ function PhotoStepperView({
             onSubmit={onAddComment}
           />
           {photo.comments && photo.comments.length > 0 ? (
-            commonList(photo.comments)
+            commentList(photo.comments)
           ) : (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               No comments yet
