@@ -73,20 +73,13 @@ function findMostCommentedByUser(userId) {
     return Promise.resolve([]);
   }
 
-  return Photo.aggregate([
-    { $match: { user_id: mongoose.Types.ObjectId(userId) } },
-    { $addFields: { commentCount: { $size: { $ifNull: ["$comments", []] } } } },
-    { $sort: { commentCount: -1, date_time: -1 } },
-    { $limit: 1 },
-    {
-      $project: {
-        _id: 1,
-        file_name: 1,
-        date_time: 1,
-        commentCount: 1,
-      },
-    },
-  ]).exec();
+  return Photo.aggregate()
+    .match({ user_id: mongoose.Types.ObjectId(userId) })
+    .addFields({ commentCount: { $size: { $ifNull: ["$comments", []] } } })
+    .sort({ commentCount: -1, date_time: -1 })
+    .limit(1)
+    .project({ _id: 1, file_name: 1, date_time: 1, commentCount: 1 })
+    .exec();
 }
 
 /**
