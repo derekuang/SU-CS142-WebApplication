@@ -31,6 +31,18 @@ export function getUserUsage(id) {
 }
 
 /**
+ * Fetch the photos whose comments @mention a user. Each entry has `_id`,
+ * `file_name`, `date_time`, and an `owner` ({ _id, first_name, last_name })
+ * object for the photo's owner.
+ *
+ * @param {string} id The mentioned user's _id.
+ * @returns {Promise<Array<object>>}
+ */
+export function getMentionsOfUser(id) {
+  return axios.get(`/mentionsOfUser/${id}`).then((response) => response.data);
+}
+
+/**
  * Upload a photo for the logged in user. The file is sent as multipart form
  * data under the field name the server expects.
  *

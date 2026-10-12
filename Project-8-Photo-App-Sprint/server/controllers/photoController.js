@@ -81,8 +81,27 @@ function getUsage(request, response) {
     });
 }
 
+/**
+ * GET /mentionsOfUser/:id - Return the photos whose comments @mention the
+ * given user, as shaped by the photo service.
+ */
+function getMentions(request, response) {
+  const id = request.params.id;
+
+  photoService
+    .getMentionsOfUser(id)
+    .then((mentions) => {
+      response.status(200).send(mentions);
+    })
+    .catch((err) => {
+      console.log("Error finding mentioned photos:", err);
+      response.status(400).send(err);
+    });
+}
+
 module.exports = {
   photosOfUser,
   addPhoto,
   getUsage,
+  getMentions,
 };

@@ -36,6 +36,7 @@ router.get("/user/:id", requireLogin, userController.detail);
 // Photos.
 router.get("/photosOfUser/:id", requireLogin, photoController.photosOfUser);
 router.get("/usageOfUser/:id", requireLogin, photoController.getUsage);
+router.get("/mentionsOfUser/:id", requireLogin, photoController.getMentions);
 router.post(
   "/photos/new",
   requireLogin,

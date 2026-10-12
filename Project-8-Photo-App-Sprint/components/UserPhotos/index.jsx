@@ -19,7 +19,10 @@ function UserPhotos(props) {
   const { userId, photoId } = props.match.params;
   const advanced = props.advancedFeatures;
 
-  const { photos, onAddComment } = useUserPhotos(userId, props.refreshToken);
+  const { photos, onAddComment, mentionSuggestions } = useUserPhotos(
+    userId,
+    props.refreshToken,
+  );
 
   // Which photo the stepper is on. Falls back to the first photo when no (or an
   // unknown, e.g. deleted) id is in the URL. -1 means there is nothing to show.
@@ -43,6 +46,7 @@ function UserPhotos(props) {
       photos={photos}
       currentIndex={currentIndex}
       onAddComment={onAddComment}
+      mentionSuggestions={mentionSuggestions}
       onPrev={() => goToIndex(currentIndex - 1)}
       onNext={() => goToIndex(currentIndex + 1)}
     />

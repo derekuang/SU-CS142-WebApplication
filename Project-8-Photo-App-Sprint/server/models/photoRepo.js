@@ -11,11 +11,12 @@ const mongoose = require("mongoose");
 const Photo = require("../../schema/photo.js");
 
 /**
- * Find all photos for a user, with their comments' author info populated.
+ * Find all photos for a user, with their comments' author and mentioned users
+ * populated.
  *
- * The `comments.user_id` reference is populated with just the author's name so
- * a caller can build the `user` object the API contract expects; `__v` is
- * excluded to match the existing response shape.
+ * The `comments.user_id` and `comments.mentions` references are populated with
+ * just the names so a caller can build the `user`/`mentions` objects the API
+ * contract expects; `__v` is excluded to match the existing response shape.
  *
  * @param {string} userId
  * @returns {Promise<Array<object>>} The user's Photo documents.
@@ -25,6 +26,10 @@ function findByUser(userId) {
     .select("-__v")
     .populate({
       path: "comments.user_id",
+      select: "first_name last_name",
+    })
+    .populate({
+      path: "comments.mentions",
       select: "first_name last_name",
     })
     .exec();
@@ -83,6 +88,29 @@ function findMostCommentedByUser(userId) {
 }
 
 /**
+ * Find every photo that has a comment @mentioning the given user.
+ *
+ * Only the fields the mentions list needs are returned (thumbnail file name,
+ * upload time, owner name), so the comments themselves are excluded. Matching
+ * on `comments.mentions` also de-duplicates a photo that mentions the user more
+ * than once. A malformed id is treated as "no photos" rather than throwing.
+ *
+ * @param {string} userId The mentioned user's `_id`.
+ * @returns {Promise<Array<object>>} Photos whose comments mention the user,
+ *   newest first, with `user_id` populated with the owner's name.
+ */
+function findPhotosMentioningUser(userId) {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return Promise.resolve([]);
+  }
+  return Photo.find({ "comments.mentions": userId })
+    .select("-__v -comments")
+    .populate({ path: "user_id", select: "first_name last_name" })
+    .sort({ date_time: -1 })
+    .exec();
+}
+
+/**
  * Create a new photo.
  *
  * @param {object} photoData Fields for the new photo (file_name, user_id, ...).
@@ -108,6 +136,7 @@ function save(photo) {
 module.exports = {
   findByUser,
   findById,
+  findPhotosMentioningUser,
   findMostRecentByUser,
   findMostCommentedByUser,
   create,

@@ -1,5 +1,14 @@
 import React from "react";
-import { Button, Stack, Divider, Link, Typography, Box } from "@mui/material";
+import {
+  Button,
+  Stack,
+  Divider,
+  Link,
+  List,
+  ListItem,
+  Typography,
+  Box,
+} from "@mui/material";
 
 import humanize from "../utils/humanize.js";
 
@@ -7,9 +16,9 @@ import humanize from "../utils/humanize.js";
  * Presentational view for a single user's profile.
  *
  * Renders only what it is given: `user` (or a loading placeholder while it is
- * still undefined) and `usage`, the server-computed summary of the user's most
- * recent and most commented photo. It performs no data fetching and no
- * selection of its own.
+ * still undefined), `usage`, the server-computed summary of the user's most
+ * recent and most commented photo, and `mentions`, the photos whose comments
+ * @mention this user. It performs no data fetching and no selection of its own.
  *
  * Each usage thumbnail links to that photo's position in the photos view;
  * `onOpenStepper` lets the shell turn on the photo stepper so the linked photo
@@ -62,7 +71,94 @@ function UsageSection({ title, photo, caption, userId, onOpenStepper, loading })
   );
 }
 
-function UserDetailView({ user, usage, onOpenStepper }) {
+/**
+ * One photo that mentions this user: a small thumbnail that opens the photo in
+ * its owner's photo view, and a link to the owner's profile. The owner may be
+ * null if that account was removed, in which case only the thumbnail's plain
+ * text fallback is shown.
+ */
+function MentionItem({ photo, onOpenStepper }) {
+  const owner = photo.owner;
+  const ownerName = owner
+    ? `${owner.first_name} ${owner.last_name}`
+    : "Unknown user";
+
+  return (
+    <ListItem>
+      <Link
+        href={owner ? `#/photos/${owner._id}/${photo._id}` : undefined}
+        onClick={owner ? onOpenStepper : undefined}
+        underline="none"
+        sx={{ mr: 2 }}
+      >
+        <Box
+          component="img"
+          alt={photo.file_name}
+          src={`images/${photo.file_name}`}
+          sx={{
+            width: 64,
+            height: 64,
+            objectFit: "cover",
+            borderRadius: 1,
+            display: "block",
+          }}
+        />
+      </Link>
+      <Stack>
+        {owner ? (
+          <Link
+            href={`#/users/${owner._id}`}
+            color="inherit"
+            underline="hover"
+            sx={{ fontWeight: "bold" }}
+          >
+            {ownerName}
+          </Link>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {ownerName}
+          </Typography>
+        )}
+        <Typography variant="caption" color="text.secondary">
+          {humanize(photo.date_time)}
+        </Typography>
+      </Stack>
+    </ListItem>
+  );
+}
+
+/**
+ * The photos whose comments @mention this user, as reported by the server.
+ * Shows a placeholder while the list is still loading and a plain message when
+ * the user has never been mentioned.
+ */
+function MentionsSection({ mentions, onOpenStepper }) {
+  return (
+    <Stack alignItems="center" spacing={1} sx={{ width: "100%" }}>
+      <Typography variant="h6">Mentions</Typography>
+      {!mentions ? (
+        <Typography variant="body2" color="text.secondary">
+          Loading...
+        </Typography>
+      ) : mentions.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          No mentions yet
+        </Typography>
+      ) : (
+        <List sx={{ width: "100%" }}>
+          {mentions.map((photo) => (
+            <React.Fragment key={photo._id}>
+              <MentionItem photo={photo} onOpenStepper={onOpenStepper} />
+              <Divider />
+            </React.Fragment>
+          ))}
+        </List>
+      )}
+    </Stack>
+  );
+}
+
+function UserDetailView({ user, usage, mentions, onOpenStepper }) {
   if (!user) {
     return <Box>Loading...</Box>;
   }
@@ -111,6 +207,8 @@ function UserDetailView({ user, usage, onOpenStepper }) {
         userId={user._id}
         onOpenStepper={onOpenStepper}
       />
+
+      <MentionsSection mentions={mentions} onOpenStepper={onOpenStepper} />
     </Stack>
   );
 }

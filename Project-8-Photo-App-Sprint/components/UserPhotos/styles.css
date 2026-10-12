@@ -1,0 +1,12 @@
+/* Styling for the @mention links that renderCommentHtml injects into comment
+   text. Defined here (rather than inline) because the anchors are created as
+   HTML strings, not React elements. */
+.cs142-mention {
+  color: #1976d2;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cs142-mention:hover {
+  text-decoration: underline;
+}

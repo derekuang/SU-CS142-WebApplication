@@ -12,6 +12,10 @@ const commentSchema = new mongoose.Schema({
   date_time: { type: Date, default: Date.now },
   // The ID of the user who created the comment.
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  // The IDs of the users @mentioned in this comment. Only users verified to
+  // exist when the comment was added are stored here, so a mention can never
+  // point at a nonexistent user.
+  mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });
 
 /**
@@ -22,8 +26,9 @@ const photoSchema = new mongoose.Schema({
   file_name: String,
   // The date and time when the photo was added to the database.
   date_time: { type: Date, default: Date.now },
-  // The ID of the user who created the photo.
-  user_id: mongoose.Schema.Types.ObjectId,
+  // The ID of the user who created the photo. `ref` lets a query populate the
+  // owner's profile (used by the mentions list).
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   // Array of comment objects representing the comments made on this photo.
   comments: [commentSchema],
 });

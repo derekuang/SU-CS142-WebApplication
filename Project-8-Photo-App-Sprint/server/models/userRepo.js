@@ -45,6 +45,26 @@ function list() {
 }
 
 /**
+ * Return the subset of the given ids that correspond to existing users.
+ *
+ * Used to validate @mentions before they are stored: an id that is malformed or
+ * does not match a user is simply omitted rather than throwing. An empty (or
+ * missing) input resolves to an empty array so callers never query `$in: []`.
+ *
+ * @param {Array<string>} ids Candidate User `_id` values.
+ * @returns {Promise<Array<object>>} The existing users' `_id` values.
+ */
+function findExistingIds(ids) {
+  if (!ids || ids.length === 0) {
+    return Promise.resolve([]);
+  }
+  return User.find({ _id: { $in: ids } })
+    .select("_id")
+    .exec()
+    .then((users) => users.map((user) => user._id));
+}
+
+/**
  * Create a new user.
  *
  * @param {object} userData Fields for the new user (including salt/hash).
@@ -68,6 +88,7 @@ module.exports = {
   findByLoginName,
   findById,
   list,
+  findExistingIds,
   create,
   existsByLoginName,
 };

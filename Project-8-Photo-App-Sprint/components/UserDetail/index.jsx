@@ -15,12 +15,13 @@ import "./styles.css";
  * navigating to the linked photo.
  */
 function UserDetail(props) {
-  const { user, usage } = useUserDetail(props.match.params.userId);
+  const { user, usage, mentions } = useUserDetail(props.match.params.userId);
 
   return (
     <UserDetailView
       user={user}
       usage={usage}
+      mentions={mentions}
       onOpenStepper={props.onOpenStepper}
     />
   );

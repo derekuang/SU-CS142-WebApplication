@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { getPhotosOfUser, addComment } from "../model/api/photoApi.js";
+import { listUsers } from "../model/api/userApi.js";
 import getErrorMessage from "../model/api/errors.js";
 
 /**
@@ -10,9 +11,12 @@ import getErrorMessage from "../model/api/errors.js";
  * `refreshToken` changes (so an upload elsewhere refreshes the view). Also
  * exposes `onAddComment(photoId, text)`, which submits a comment, reloads on
  * success, and rejects with a displayable message on failure.
+ *
+ * Loads the user list once to provide the @mention autocomplete suggestions.
  */
 function useUserPhotos(userId, refreshToken) {
   const [photos, setPhotos] = useState();
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
 
   const reload = useCallback(() => {
     getPhotosOfUser(userId).then(setPhotos);
@@ -21,6 +25,17 @@ function useUserPhotos(userId, refreshToken) {
   useEffect(() => {
     reload();
   }, [reload, refreshToken]);
+
+  useEffect(() => {
+    listUsers().then((users) => {
+      setMentionSuggestions(
+        users.map((user) => ({
+          id: user._id,
+          display: `${user.first_name} ${user.last_name}`,
+        })),
+      );
+    });
+  }, []);
 
   const onAddComment = useCallback(
     (photoId, text) => {
@@ -37,7 +52,7 @@ function useUserPhotos(userId, refreshToken) {
     [reload],
   );
 
-  return { photos, onAddComment };
+  return { photos, onAddComment, mentionSuggestions };
 }
 
 export default useUserPhotos;
