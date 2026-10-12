@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 
 import getSchemaInfo from "../model/api/testApi.js";
-import { uploadPhoto } from "../model/api/photoApi.js";
-import getErrorMessage from "../model/api/errors.js";
 
 /**
  * Controller for the top app bar.
  *
- * Owns the fetched schema version, the transient upload message, and the Add
- * Photo interaction. `pathname` is the current route, used to decide whether
- * the logged in `user` is on their own photo page (the only place the Add Photo
- * button appears). After a successful upload it calls `onPhotoAdded` so the
- * photos view can refresh.
+ * Owns the fetched schema version and the transient snackbar message. `pathname`
+ * is the current route, used to decide whether the logged in `user` is on their
+ * own photo page (the only place the Add Photo button appears).
  *
- * Returns everything TopBarView renders: `version`, `message`, `severity`,
- * `showAddPhoto`, `onFileSelected`, and `onCloseMessage`.
+ * The upload flow itself lives in useUploadPhoto; this hook exposes `notify` so
+ * that flow can report its outcome through the same snackbar. Returns
+ * `version`, `message`, `severity`, `showAddPhoto`, `notify`, and
+ * `onCloseMessage`.
  */
-function useTopBar(pathname, user, onPhotoAdded) {
+function useTopBar(pathname, user) {
   const [version, setVersion] = useState();
   const [message, setMessage] = useState("");
   const [severity, setSeverity] = useState();
@@ -33,33 +31,10 @@ function useTopBar(pathname, user, onPhotoAdded) {
   const match = pathname.match(/^\/photos\/([^/]+)(?:\/[^/]+)?$/);
   const showAddPhoto = Boolean(user && match && match[1] === user._id);
 
-  const onFileSelected = useCallback(
-    (event) => {
-      const file = event.target.files[0];
-      // Reset the input so picking the same file again still fires onChange.
-      event.target.value = "";
-
-      if (!file) {
-        return;
-      }
-
-      uploadPhoto(file)
-        .then(() => {
-          setMessage("Photo added.");
-          setSeverity("success");
-          if (onPhotoAdded) {
-            onPhotoAdded();
-          }
-        })
-        .catch((err) => {
-          setMessage(
-            getErrorMessage(err, "Unable to add photo. Please try again."),
-          );
-          setSeverity("error");
-        });
-    },
-    [onPhotoAdded],
-  );
+  const notify = useCallback((text, level) => {
+    setMessage(text);
+    setSeverity(level);
+  }, []);
 
   const onCloseMessage = useCallback(() => {
     setMessage("");
@@ -70,7 +45,7 @@ function useTopBar(pathname, user, onPhotoAdded) {
     message,
     severity,
     showAddPhoto,
-    onFileSelected,
+    notify,
     onCloseMessage,
   };
 }

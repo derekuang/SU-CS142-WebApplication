@@ -15,6 +15,8 @@ const COMMENT_REQUIRED = "Comment text is required";
 const PHOTO_NOT_FOUND = "Photo not found";
 const PHOTO_LOAD_FAILED = "Unable to load photo";
 const COMMENT_ADD_FAILED = "Unable to add comment";
+const PHOTO_ADD_FAILED = "Unable to add photo";
+const INVALID_SHARED_LIST = "Invalid shared list";
 
 /**
  * Matches a react-mentions mention token in a comment's text. react-mentions'
@@ -76,7 +78,82 @@ function shapePhotos(photos) {
 }
 
 /**
+ * Decide whether a viewer may see a photo.
+ *
+ * Mirrors the storage three-state: the owner always may; an absent
+ * `shared_with` (public) lets anyone; a present list (including an empty one)
+ * only lets the owner and the listed users.
+ *
+ * @param {object} photo A Mongoose Photo document (with `shared_with`).
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {boolean}
+ */
+function canView(photo, viewerId) {
+  if (!photo) {
+    return false;
+  }
+  if (String(photo.user_id) === String(viewerId)) {
+    return true;
+  }
+  if (photo.shared_with === undefined || photo.shared_with === null) {
+    return true;
+  }
+  return photo.shared_with.some((id) => String(id) === String(viewerId));
+}
+
+/**
+ * Create a photo for a user, applying the upload's visibility choice.
+ *
+ * `sharedWithRaw` is the raw `shared_with` multipart field. When it is
+ * `undefined` the uploader declined to restrict the photo, so it is stored
+ * without the field (public). Otherwise it must be a JSON array of user ids;
+ * the ids are validated against the User collection (nonexistent ones are
+ * dropped, mirroring how @mentions are validated) and stored on the photo, so
+ * an empty array means "owner only".
+ *
+ * @param {object} fields `{ file_name, userId, sharedWithRaw }`.
+ * @returns {Promise<{photo: object}|{error: string}>} `{photo}` with the saved
+ *   photo on success, or `{error}` with the user-facing message when the shared
+ *   list is malformed or the database write fails.
+ */
+function createPhoto({ file_name, userId, sharedWithRaw }) {
+  const base = {
+    file_name,
+    date_time: new Date(),
+    user_id: userId,
+    comments: [],
+  };
+
+  if (sharedWithRaw === undefined) {
+    return photoRepo
+      .create(base)
+      .then((photo) => ({ photo }))
+      .catch(() => ({ error: PHOTO_ADD_FAILED }));
+  }
+
+  let ids;
+  try {
+    ids = JSON.parse(sharedWithRaw);
+  } catch (err) {
+    return Promise.resolve({ error: INVALID_SHARED_LIST });
+  }
+  if (!Array.isArray(ids)) {
+    return Promise.resolve({ error: INVALID_SHARED_LIST });
+  }
+
+  return userRepo
+    .findExistingIds(ids)
+    .then((validIds) => photoRepo.create({ ...base, shared_with: validIds }))
+    .then((photo) => ({ photo }))
+    .catch(() => ({ error: PHOTO_ADD_FAILED }));
+}
+
+/**
  * Add a comment to a photo.
+ *
+ * Only users who may see the photo are allowed to comment on it; a comment on
+ * an unseen photo is reported as "not found" so the photo's existence is not
+ * revealed.
  *
  * @param {string} photoId
  * @param {string} userId The commenting user's `_id`.
@@ -96,7 +173,7 @@ function addComment(photoId, userId, rawText) {
 
   return photoRepo.findById(photoId).then(
     (photo) => {
-      if (!photo) {
+      if (!canView(photo, userId)) {
         return { error: PHOTO_NOT_FOUND };
       }
 
@@ -127,12 +204,15 @@ function addComment(photoId, userId, rawText) {
  * photo to null.
  *
  * @param {string} userId
+ * @param {string} viewerId The logged in user's `_id`; only photos this user may
+ *   see are considered, so restricted photos they cannot see never appear in
+ *   the summary.
  * @returns {Promise<{recentPhoto: object|null, mostCommentedPhoto: object|null}>}
  */
-function getUsage(userId) {
+function getUsage(userId, viewerId) {
   return Promise.all([
-    photoRepo.findMostRecentByUser(userId),
-    photoRepo.findMostCommentedByUser(userId),
+    photoRepo.findMostRecentByUser(userId, viewerId),
+    photoRepo.findMostCommentedByUser(userId, viewerId),
   ]).then(([recentPhoto, mostCommented]) => ({
     recentPhoto: recentPhoto || null,
     mostCommentedPhoto: mostCommented[0] || null,
@@ -146,11 +226,13 @@ function getUsage(userId) {
  * owner's profile).
  *
  * @param {string} userId The mentioned user's `_id`.
+ * @param {string} viewerId The logged in user's `_id`; mentions on photos the
+ *   viewer may not see are omitted.
  * @returns {Promise<Array<{_id: string, file_name: string, date_time: Date,
  *   owner: object}>>} The mentioning photos, newest first.
  */
-function getMentionsOfUser(userId) {
-  return photoRepo.findPhotosMentioningUser(userId).then((photos) => {
+function getMentionsOfUser(userId, viewerId) {
+  return photoRepo.findPhotosMentioningUser(userId, viewerId).then((photos) => {
     return photos.map((photo) => {
       const obj = photo.toObject();
       return {
@@ -165,6 +247,7 @@ function getMentionsOfUser(userId) {
 
 module.exports = {
   shapePhotos,
+  createPhoto,
   addComment,
   getUsage,
   getMentionsOfUser,

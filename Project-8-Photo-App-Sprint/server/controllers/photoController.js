@@ -12,14 +12,15 @@ const photoRepo = require("../models/photoRepo.js");
 const photoService = require("../services/photoService.js");
 
 /**
- * GET /photosOfUser/:id - Return every photo of User (id), with comments
- * shaped into the API's `user` form.
+ * GET /photosOfUser/:id - Return the photos of User (id) the logged in user is
+ * allowed to see, with comments shaped into the API's `user` form. Visibility
+ * is filtered here, in the query, rather than in the client.
  */
 function photosOfUser(request, response) {
   const id = request.params.id;
 
   photoRepo
-    .findByUser(id)
+    .findByUser(id, request.session.user_id)
     .then((photos) => {
       response.status(200).send(photoService.shapePhotos(photos));
     })
@@ -31,8 +32,10 @@ function photosOfUser(request, response) {
 
 /**
  * POST /photos/new - Create a photo for the logged in user from the uploaded
- * file. If persisting fails, the already-written file is removed so no
- * orphaned image is left behind.
+ * file, applying the optional share list from the `shared_with` form field.
+ *
+ * If persisting fails (or the share list is malformed), the already-written
+ * file is removed so no orphaned image is left behind.
  */
 function addPhoto(request, response) {
   if (!request.file) {
@@ -40,20 +43,28 @@ function addPhoto(request, response) {
     return;
   }
 
-  photoRepo
-    .create({
+  photoService
+    .createPhoto({
       file_name: request.file.filename,
-      date_time: new Date(),
-      user_id: request.session.user_id,
-      comments: [],
+      userId: request.session.user_id,
+      sharedWithRaw: request.body.shared_with,
     })
-    .then((savedPhoto) => {
-      response.status(200).send(savedPhoto);
+    .then((result) => {
+      if (result.error) {
+        // The file was already written to disk by multer before this handler
+        // ran, so remove it to avoid leaving an orphaned image behind.
+        fs.unlink(request.file.path, (unlinkErr) => {
+          if (unlinkErr) {
+            console.log("Error removing orphaned photo file:", unlinkErr);
+          }
+        });
+        response.status(400).send(result.error);
+        return;
+      }
+      response.status(200).send(result.photo);
     })
     .catch((err) => {
       console.log("Error saving photo:", err);
-      // The file was already written to disk by multer before this handler
-      // ran, so remove it to avoid leaving an orphaned image behind.
       fs.unlink(request.file.path, (unlinkErr) => {
         if (unlinkErr) {
           console.log("Error removing orphaned photo file:", unlinkErr);
@@ -71,7 +82,7 @@ function getUsage(request, response) {
   const id = request.params.id;
 
   photoService
-    .getUsage(id)
+    .getUsage(id, request.session.user_id)
     .then((usage) => {
       response.status(200).send(usage);
     })
@@ -89,7 +100,7 @@ function getMentions(request, response) {
   const id = request.params.id;
 
   photoService
-    .getMentionsOfUser(id)
+    .getMentionsOfUser(id, request.session.user_id)
     .then((mentions) => {
       response.status(200).send(mentions);
     })

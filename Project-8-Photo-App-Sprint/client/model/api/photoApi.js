@@ -46,12 +46,22 @@ export function getMentionsOfUser(id) {
  * Upload a photo for the logged in user. The file is sent as multipart form
  * data under the field name the server expects.
  *
+ * The optional `sharedWith` encodes the visibility choice: `undefined` sends no
+ * share-list field at all, which the server stores as "visible to everyone",
+ * while an array (including an empty one, meaning "only me") is sent as JSON and
+ * stored as the photo's share list.
+ *
  * @param {File} file The selected image file.
+ * @param {Array<string>} [sharedWith] User ids allowed to see the photo, or
+ *   undefined for a public photo.
  * @returns {Promise<object>} The created photo.
  */
-export function uploadPhoto(file) {
+export function uploadPhoto(file, sharedWith) {
   const formData = new FormData();
   formData.append("uploadedphoto", file);
+  if (sharedWith !== undefined) {
+    formData.append("shared_with", JSON.stringify(sharedWith));
+  }
   return axios.post("/photos/new", formData).then((response) => response.data);
 }
 

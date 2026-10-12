@@ -11,19 +11,53 @@ const mongoose = require("mongoose");
 const Photo = require("../../schema/photo.js");
 
 /**
- * Find all photos for a user, with their comments' author and mentioned users
- * populated.
+ * Build the extra query clause that limits photos to those a viewer may see.
+ *
+ * The owner sees every one of their own photos, so no clause is needed (null is
+ * returned). Everyone else may only see photos that are public (the
+ * `shared_with` field is absent) or that list them in `shared_with`. A present
+ * but empty `shared_with` matches neither branch, which is exactly the
+ * "owner only" case.
+ *
+ * @param {string} ownerId The photo owner's `_id`.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {object|null} A `{ $or }` clause, or null when unrestricted.
+ */
+function visibilityFilter(ownerId, viewerId) {
+  if (String(ownerId) === String(viewerId)) {
+    return null;
+  }
+  return {
+    $or: [
+      { shared_with: { $exists: false } },
+      { shared_with: viewerId },
+    ],
+  };
+}
+
+/**
+ * Find all photos for a user that the viewer may see, with their comments'
+ * author and mentioned users populated.
  *
  * The `comments.user_id` and `comments.mentions` references are populated with
  * just the names so a caller can build the `user`/`mentions` objects the API
  * contract expects; `__v` is excluded to match the existing response shape.
  *
+ * Only photos the viewer is allowed to see are returned; `shared_with` is
+ * stripped from the response so the share list never leaks.
+ *
  * @param {string} userId
- * @returns {Promise<Array<object>>} The user's Photo documents.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Promise<Array<object>>} The visible Photo documents.
  */
-function findByUser(userId) {
-  return Photo.find({ user_id: userId })
-    .select("-__v")
+function findByUser(userId, viewerId) {
+  const query = { user_id: userId };
+  const filter = visibilityFilter(userId, viewerId);
+  if (filter) {
+    query.$or = filter.$or;
+  }
+  return Photo.find(query)
+    .select("-__v -shared_with")
     .populate({
       path: "comments.user_id",
       select: "first_name last_name",
@@ -49,11 +83,18 @@ function findById(photoId) {
  * Find the user's most recently uploaded photo.
  *
  * @param {string} userId
- * @returns {Promise<object|null>} The newest Photo document (file_name,
- *   date_time only), or null when the user has no photos.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Promise<object|null>} The newest visible Photo document (file_name,
+ *   date_time only), or null when the viewer cannot see any of the user's
+ *   photos.
  */
-function findMostRecentByUser(userId) {
-  return Photo.findOne({ user_id: userId })
+function findMostRecentByUser(userId, viewerId) {
+  const query = { user_id: userId };
+  const filter = visibilityFilter(userId, viewerId);
+  if (filter) {
+    query.$or = filter.$or;
+  }
+  return Photo.findOne(query)
     .sort({ date_time: -1 })
     .select("file_name date_time")
     .exec();
@@ -67,19 +108,30 @@ function findMostRecentByUser(userId) {
  * to the same photo.
  *
  * @param {string} userId
- * @returns {Promise<object|null>} The most commented Photo document
- *   (file_name, date_time, commentCount only), or null when the user has no
- *   photos.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Promise<object|null>} The most commented visible Photo document
+ *   (file_name, date_time, commentCount only), or null when the viewer cannot
+ *   see any of the user's photos.
  */
-function findMostCommentedByUser(userId) {
+function findMostCommentedByUser(userId, viewerId) {
   // Guard against a malformed id: casting it would throw before we can return
   // a promise, so treat it as "no photos".
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return Promise.resolve([]);
   }
 
+  const match = { user_id: mongoose.Types.ObjectId(userId) };
+  // The aggregation pipeline does not cast for us, so the viewer branch is
+  // built with a real ObjectId (the viewer id always comes from the session).
+  if (String(viewerId) !== String(userId)) {
+    match.$or = [
+      { shared_with: { $exists: false } },
+      { shared_with: mongoose.Types.ObjectId(viewerId) },
+    ];
+  }
+
   return Photo.aggregate()
-    .match({ user_id: mongoose.Types.ObjectId(userId) })
+    .match(match)
     .addFields({ commentCount: { $size: { $ifNull: ["$comments", []] } } })
     .sort({ commentCount: -1, date_time: -1 })
     .limit(1)
@@ -95,16 +147,27 @@ function findMostCommentedByUser(userId) {
  * on `comments.mentions` also de-duplicates a photo that mentions the user more
  * than once. A malformed id is treated as "no photos" rather than throwing.
  *
+ * Only photos the viewer is allowed to see are returned, so a mention on a
+ * private photo the viewer cannot see never leaks its thumbnail.
+ *
  * @param {string} userId The mentioned user's `_id`.
- * @returns {Promise<Array<object>>} Photos whose comments mention the user,
- *   newest first, with `user_id` populated with the owner's name.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Promise<Array<object>>} Visible photos whose comments mention the
+ *   user, newest first, with `user_id` populated with the owner's name.
  */
-function findPhotosMentioningUser(userId) {
+function findPhotosMentioningUser(userId, viewerId) {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return Promise.resolve([]);
   }
-  return Photo.find({ "comments.mentions": userId })
-    .select("-__v -comments")
+  return Photo.find({
+    "comments.mentions": userId,
+    $or: [
+      { user_id: viewerId },
+      { shared_with: { $exists: false } },
+      { shared_with: viewerId },
+    ],
+  })
+    .select("-__v -comments -shared_with")
     .populate({ path: "user_id", select: "first_name last_name" })
     .sort({ date_time: -1 })
     .exec();

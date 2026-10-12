@@ -31,6 +31,16 @@ const photoSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   // Array of comment objects representing the comments made on this photo.
   comments: [commentSchema],
+  // Visibility three-state: the field being absent means the photo is visible
+  // to everyone; the field being present (including an empty array) means only
+  // the owner and the users listed here may see it.
+  // `default: undefined` is required: without it Mongoose coerces an unset
+  // array path to [], which would erase the distinction between "no list
+  // specified" (public) and "empty list" (owner only).
+  shared_with: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    default: undefined,
+  },
 });
 
 /**
