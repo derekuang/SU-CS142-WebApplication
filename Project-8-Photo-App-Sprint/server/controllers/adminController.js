@@ -8,6 +8,7 @@
 
 const authService = require("../services/authService.js");
 const activityService = require("../services/activityService.js");
+const userService = require("../services/userService.js");
 const ACTIVITY_TYPES = require("../models/activityTypes.js");
 const userRepo = require("../models/userRepo.js");
 
@@ -86,8 +87,36 @@ function currentUser(request, response) {
     });
 }
 
+/**
+ * DELETE /admin/currentUser - Permanently delete the logged in user's account
+ * and everything that refers to it (photos, comments, activity, mentions,
+ * share lists), then destroy the session so the browser is logged out.
+ *
+ * A cascade failure returns a 500 before the session is touched, so a retry can
+ * still act as the same user.
+ */
+function deleteAccount(request, response) {
+  userService
+    .deleteAccount(request.session.user_id)
+    .then(() => {
+      request.session.destroy((err) => {
+        if (err) {
+          console.log("Error destroying session:", err);
+          response.status(500).send("Account deleted, but logout failed");
+          return;
+        }
+        response.status(200).send({ status: "ok" });
+      });
+    })
+    .catch((err) => {
+      console.log("Error deleting account:", err);
+      response.status(500).send("Unable to delete account");
+    });
+}
+
 module.exports = {
   login,
   logout,
   currentUser,
+  deleteAccount,
 };

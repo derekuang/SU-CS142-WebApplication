@@ -7,6 +7,11 @@ import {
   CardContent,
   CardMedia,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   Link,
   List,
@@ -78,13 +83,25 @@ const mentionsStyle = {
   },
 };
 
-function commentList(comments) {
+function commentList(comments, photoId, viewerId, onRequestDeleteComment) {
   return (
     <List dense>
       {comments.map((comment) => {
         return (
           <React.Fragment key={comment._id}>
-            <ListItem>
+            <ListItem
+              secondaryAction={
+                comment.user && comment.user._id === viewerId ? (
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => onRequestDeleteComment(photoId, comment._id)}
+                  >
+                    Delete
+                  </Button>
+                ) : null
+              }
+            >
               <ListItemText
                 primary={
                   // eslint-disable-next-line react/jsx-wrap-multilines
@@ -215,6 +232,48 @@ function CommentForm({ photoId, suggestions, onSubmit }) {
   );
 }
 
+/**
+ * Confirmation dialog shared by the photo and comment delete buttons.
+ *
+ * Reports the outcome through `error` (shown inline) while the request is in
+ * flight via `busy`, so a failed delete keeps the dialog open with the server's
+ * message instead of silently closing.
+ */
+function DeleteConfirmDialog({ open, kind, busy, error, onConfirm, onCancel }) {
+  const isPhoto = kind === "photo";
+
+  return (
+    <Dialog open={open} onClose={onCancel}>
+      <DialogTitle>{isPhoto ? "Delete photo?" : "Delete comment?"}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          {isPhoto
+            ? "This photo and all of its comments will be permanently deleted."
+            : "This comment will be permanently deleted."}
+        </DialogContentText>
+        {error ? (
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            {error}
+          </Typography>
+        ) : null}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel} disabled={busy}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={onConfirm}
+          disabled={busy}
+        >
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 /** Prev/next controls for the single-photo viewer. */
 function PhotoStepper({ index, total, onPrev, onNext }) {
   return (
@@ -243,7 +302,14 @@ function PhotoStepper({ index, total, onPrev, onNext }) {
 }
 
 /** The original view: every photo laid out in a responsive grid. */
-function PhotoGridView({ photos, onAddComment, mentionSuggestions }) {
+function PhotoGridView({
+  photos,
+  viewerId,
+  onAddComment,
+  onRequestDeletePhoto,
+  onRequestDeleteComment,
+  mentionSuggestions,
+}) {
   return (
     <Grid container spacing={2} sx={{ height: "100%", overflowY: "auto" }}>
       {photos.map((photo) => {
@@ -262,13 +328,28 @@ function PhotoGridView({ photos, onAddComment, mentionSuggestions }) {
                   color="primary"
                   variant="outlined"
                 />
+                {photo.user_id === viewerId ? (
+                  <Button
+                    size="small"
+                    color="error"
+                    sx={{ ml: 1 }}
+                    onClick={() => onRequestDeletePhoto(photo._id)}
+                  >
+                    Delete photo
+                  </Button>
+                ) : null}
                 <CommentForm
                   photoId={photo._id}
                   suggestions={mentionSuggestions}
                   onSubmit={onAddComment}
                 />
                 {photo.comments && photo.comments.length > 0 ? (
-                  commentList(photo.comments)
+                  commentList(
+                    photo.comments,
+                    photo._id,
+                    viewerId,
+                    onRequestDeleteComment,
+                  )
                 ) : (
                   <Typography
                     variant="body2"
@@ -291,7 +372,10 @@ function PhotoGridView({ photos, onAddComment, mentionSuggestions }) {
 function PhotoStepperView({
   photos,
   currentIndex,
+  viewerId,
   onAddComment,
+  onRequestDeletePhoto,
+  onRequestDeleteComment,
   mentionSuggestions,
   onPrev,
   onNext,
@@ -328,13 +412,28 @@ function PhotoStepperView({
             color="primary"
             variant="outlined"
           />
+          {photo.user_id === viewerId ? (
+            <Button
+              size="small"
+              color="error"
+              sx={{ ml: 1 }}
+              onClick={() => onRequestDeletePhoto(photo._id)}
+            >
+              Delete photo
+            </Button>
+          ) : null}
           <CommentForm
             photoId={photo._id}
             suggestions={mentionSuggestions}
             onSubmit={onAddComment}
           />
           {photo.comments && photo.comments.length > 0 ? (
-            commentList(photo.comments)
+            commentList(
+              photo.comments,
+              photo._id,
+              viewerId,
+              onRequestDeleteComment,
+            )
           ) : (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               No comments yet
@@ -356,34 +455,107 @@ function UserPhotosView({
   advancedFeatures,
   photos,
   currentIndex,
+  viewerId,
   onAddComment,
+  onDeletePhoto,
+  onDeleteComment,
   mentionSuggestions,
   onPrev,
   onNext,
 }) {
+  // The delete confirmation dialog is shared by the photo and comment buttons;
+  // `pending` records which one is being confirmed ({ kind, photoId, commentId }).
+  const [pending, setPending] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  const requestDeletePhoto = (photoId) => {
+    setError("");
+    setBusy(false);
+    setPending({ kind: "photo", photoId });
+  };
+
+  const requestDeleteComment = (photoId, commentId) => {
+    setError("");
+    setBusy(false);
+    setPending({ kind: "comment", photoId, commentId });
+  };
+
+  const cancelDelete = () => {
+    setPending(null);
+    setError("");
+    setBusy(false);
+  };
+
+  const confirmDelete = () => {
+    if (!pending) {
+      return;
+    }
+    setBusy(true);
+    setError("");
+
+    const action =
+      pending.kind === "photo"
+        ? onDeletePhoto(pending.photoId)
+        : onDeleteComment(pending.photoId, pending.commentId);
+
+    action
+      .then(() => {
+        setPending(null);
+        setBusy(false);
+      })
+      .catch((message) => {
+        setBusy(false);
+        setError(message || "Unable to delete. Please try again.");
+      });
+  };
+
   if (!photos) {
     return <Box>Loading...</Box>;
   }
 
+  const dialog = (
+    <DeleteConfirmDialog
+      open={Boolean(pending)}
+      kind={pending ? pending.kind : null}
+      busy={busy}
+      error={error}
+      onConfirm={confirmDelete}
+      onCancel={cancelDelete}
+    />
+  );
+
   if (advancedFeatures) {
     return (
-      <PhotoStepperView
-        photos={photos}
-        currentIndex={currentIndex}
-        onAddComment={onAddComment}
-        mentionSuggestions={mentionSuggestions}
-        onPrev={onPrev}
-        onNext={onNext}
-      />
+      <React.Fragment>
+        <PhotoStepperView
+          photos={photos}
+          currentIndex={currentIndex}
+          viewerId={viewerId}
+          onAddComment={onAddComment}
+          onRequestDeletePhoto={requestDeletePhoto}
+          onRequestDeleteComment={requestDeleteComment}
+          mentionSuggestions={mentionSuggestions}
+          onPrev={onPrev}
+          onNext={onNext}
+        />
+        {dialog}
+      </React.Fragment>
     );
   }
 
   return (
-    <PhotoGridView
-      photos={photos}
-      onAddComment={onAddComment}
-      mentionSuggestions={mentionSuggestions}
-    />
+    <React.Fragment>
+      <PhotoGridView
+        photos={photos}
+        viewerId={viewerId}
+        onAddComment={onAddComment}
+        onRequestDeletePhoto={requestDeletePhoto}
+        onRequestDeleteComment={requestDeleteComment}
+        mentionSuggestions={mentionSuggestions}
+      />
+      {dialog}
+    </React.Fragment>
   );
 }
 

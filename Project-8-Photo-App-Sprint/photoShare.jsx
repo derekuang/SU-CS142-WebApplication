@@ -25,6 +25,13 @@ function handleLogout() {
   setState({ user: null });
 }
 
+function handleAccountDeleted() {
+  // The server already destroyed the session as part of the account deletion,
+  // so there is nothing to log out; just drop the local user to show the login
+  // screen.
+  setState({ user: null });
+}
+
 function handlePhotoAdded() {
   // Bump the token so the photos view refetches and shows the new photo.
   setState({ photosRefreshToken: getState().photosRefreshToken + 1 });
@@ -121,6 +128,7 @@ class PhotoShare extends React.Component {
           advancedFeatures={this.state.advancedFeatures}
           onToggleAdvancedFeatures={handleToggleAdvancedFeatures}
           onLogout={handleLogout}
+          onAccountDeleted={handleAccountDeleted}
           onPhotoAdded={handlePhotoAdded}
         />
       </Grid>
@@ -163,6 +171,7 @@ class PhotoShare extends React.Component {
               <Route path="/photos/:userId/:photoId?">
                 <UserPhotos
                   advancedFeatures={this.state.advancedFeatures}
+                  currentUser={this.state.user}
                   refreshToken={this.state.photosRefreshToken}
                 />
               </Route>

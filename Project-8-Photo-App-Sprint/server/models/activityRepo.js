@@ -22,6 +22,56 @@ function create(activityData) {
 }
 
 /**
+ * Delete the activity that belongs to a specific comment.
+ *
+ * Used when a user deletes one of their comments: matching on `comment_id`
+ * (rather than on the photo) leaves the same user's other comments on that
+ * photo untouched. A comment whose activity predates the `comment_id` field
+ * simply matches nothing.
+ *
+ * @param {string} commentId The deleted comment's `_id`.
+ * @returns {Promise<object>} The delete result ({ deletedCount }).
+ */
+function deleteByCommentId(commentId) {
+  return Activity.deleteMany({ comment_id: commentId }).exec();
+}
+
+/**
+ * Delete every activity that refers to a photo.
+ *
+ * Used when a photo is deleted: its upload activity and every add-comment
+ * activity recorded against it are removed so the feed never shows an activity
+ * for a photo that no longer exists.
+ *
+ * @param {string} photoId The deleted photo's `_id`.
+ * @returns {Promise<object>} The delete result ({ deletedCount }).
+ */
+function deleteByPhotoId(photoId) {
+  return Activity.deleteMany({ photo_id: photoId }).exec();
+}
+
+/**
+ * Delete the activities that a deleted account is responsible for.
+ *
+ * Two kinds are removed: the ones the user performed (any type, so their
+ * register/login/logout entries do not linger as "Unknown user") and the ones
+ * other users performed on the photos the account owned (those photos are being
+ * deleted too).
+ *
+ * @param {string} userId The deleted user's `_id`.
+ * @param {Array<string>} photoIds The ids of the user's (about to be deleted)
+ *   photos.
+ * @returns {Promise<object>} The delete result ({ deletedCount }).
+ */
+function deleteByUserAndPhotos(userId, photoIds) {
+  const conditions = [{ user_id: userId }];
+  if (photoIds && photoIds.length > 0) {
+    conditions.push({ photo_id: { $in: photoIds } });
+  }
+  return Activity.deleteMany({ $or: conditions }).exec();
+}
+
+/**
  * Find the most recent activities a viewer is allowed to see.
  *
  * The result is computed with an aggregation rather than "fetch N then filter",
@@ -94,5 +144,8 @@ function findRecentVisible(viewerId, limit) {
 
 module.exports = {
   create,
+  deleteByCommentId,
+  deleteByPhotoId,
+  deleteByUserAndPhotos,
   findRecentVisible,
 };

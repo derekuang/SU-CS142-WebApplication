@@ -28,6 +28,11 @@ router.get("/test/:p1", testController.test);
 router.post("/admin/login", adminController.login);
 router.post("/admin/logout", adminController.logout);
 router.get("/admin/currentUser", requireLogin, adminController.currentUser);
+router.delete(
+  "/admin/currentUser",
+  requireLogin,
+  adminController.deleteAccount,
+);
 
 // Users.
 router.post("/user", userController.register);
@@ -44,12 +49,18 @@ router.post(
   uploadPhoto.single("uploadedphoto"),
   photoController.addPhoto,
 );
+router.delete("/photos/:photo_id", requireLogin, photoController.deletePhoto);
 
 // Comments.
 router.post(
   "/commentsOfPhoto/:photo_id",
   requireLogin,
   commentController.addComment,
+);
+router.delete(
+  "/commentsOfPhoto/:photo_id/:comment_id",
+  requireLogin,
+  commentController.deleteComment,
 );
 
 // Activities.

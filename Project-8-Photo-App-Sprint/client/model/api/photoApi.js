@@ -77,3 +77,26 @@ export function addComment(photoId, text) {
     .post(`/commentsOfPhoto/${photoId}`, { comment: text })
     .then((response) => response.data);
 }
+
+/**
+ * Permanently delete one of the logged in user's photos.
+ *
+ * @param {string} photoId The photo's _id.
+ * @returns {Promise<object>} The server's confirmation.
+ */
+export function deletePhoto(photoId) {
+  return axios.delete(`/photos/${photoId}`).then((response) => response.data);
+}
+
+/**
+ * Permanently delete one of the logged in user's comments.
+ *
+ * @param {string} photoId The photo's _id.
+ * @param {string} commentId The comment's _id.
+ * @returns {Promise<object>} The server's confirmation.
+ */
+export function deleteComment(photoId, commentId) {
+  return axios
+    .delete(`/commentsOfPhoto/${photoId}/${commentId}`)
+    .then((response) => response.data);
+}

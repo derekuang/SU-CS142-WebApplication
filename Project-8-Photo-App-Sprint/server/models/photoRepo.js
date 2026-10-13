@@ -196,12 +196,151 @@ function save(photo) {
   return photo.save();
 }
 
+/**
+ * Find every photo a user owns, without any visibility filtering.
+ *
+ * Deletion is performed by the owner, so this deliberately ignores `shared_with`
+ * (unlike `findByUser`) and returns just the `_id` and `file_name`: the id is
+ * needed to clean up activity records, the file name to remove the image from
+ * disk.
+ *
+ * @param {string} userId
+ * @returns {Promise<Array<object>>} The user's photos (`_id`, `file_name`).
+ */
+function findAllByUser(userId) {
+  return Photo.find({ user_id: userId }).select("_id file_name").exec();
+}
+
+/**
+ * Delete a photo by its Mongo `_id`.
+ *
+ * @param {string} photoId
+ * @returns {Promise<object>} The delete result ({ deletedCount }).
+ */
+function deleteById(photoId) {
+  return Photo.deleteOne({ _id: photoId }).exec();
+}
+
+/**
+ * Delete every photo owned by a user, used by the account-deletion cascade.
+ *
+ * @param {string} userId
+ * @returns {Promise<object>} The delete result ({ deletedCount }).
+ */
+function deleteByUser(userId) {
+  return Photo.deleteMany({ user_id: userId }).exec();
+}
+
+/**
+ * Remove a single embedded comment from a photo.
+ *
+ * `$pull` targets the subdocument by its own `_id`, so it is atomic and leaves
+ * the photo's other comments (and every other field) untouched. The caller must
+ * have already verified the comment exists and belongs to the acting user.
+ *
+ * @param {string} photoId The photo's `_id`.
+ * @param {string} commentId The comment subdocument's `_id`.
+ * @returns {Promise<object>} The update result ({ matchedCount, modifiedCount }).
+ */
+function deleteComment(photoId, commentId) {
+  return Photo.updateOne(
+    { _id: photoId },
+    { $pull: { comments: { _id: commentId } } },
+  ).exec();
+}
+
+/**
+ * Remove every comment authored by a user from all photos.
+ *
+ * Used by the account-deletion cascade: the deleted user's comments on *other*
+ * people's photos are pulled, while the comments on their own photos disappear
+ * with those photos.
+ *
+ * @param {string} authorId The deleted user's `_id`.
+ * @returns {Promise<object>} The update result ({ matchedCount, modifiedCount }).
+ */
+function pullCommentsByAuthor(authorId) {
+  return Photo.updateMany(
+    { "comments.user_id": authorId },
+    { $pull: { comments: { user_id: authorId } } },
+  ).exec();
+}
+
+/**
+ * Remove a user from every photo's `shared_with` list.
+ *
+ * A deleted account must not linger in other users' visibility lists; the ids
+ * are dropped from the array while an absent `shared_with` (public) stays
+ * absent, so the three-state visibility model is preserved.
+ *
+ * @param {string} userId The deleted user's `_id`.
+ * @returns {Promise<object>} The update result ({ matchedCount, modifiedCount }).
+ */
+function pullFromSharedWith(userId) {
+  return Photo.updateMany(
+    { shared_with: userId },
+    { $pull: { shared_with: userId } },
+  ).exec();
+}
+
+/**
+ * Remove a user's id from every comment's `mentions` array.
+ *
+ * Mentions live inside comments, so a plain `$pull` on `comments` would delete
+ * the whole comment. Instead a pipeline update maps over the comments and
+ * filters just the mentions array, keeping the invariant that a mention never
+ * points at a nonexistent user. The author's own comments have already been
+ * removed by `pullCommentsByAuthor`, so this runs on the survivors.
+ *
+ * @param {string} userId The deleted user's `_id`.
+ * @returns {Promise<object>} The update result (matched/modified counts).
+ */
+function pullMentionsOfUser(userId) {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+  }
+  const id = mongoose.Types.ObjectId(userId);
+  return Photo.updateMany({ "comments.mentions": id }, [
+    {
+      $set: {
+        comments: {
+          $map: {
+            input: "$comments",
+            as: "comment",
+            in: {
+              $mergeObjects: [
+                "$$comment",
+                {
+                  mentions: {
+                    $filter: {
+                      input: { $ifNull: ["$$comment.mentions", []] },
+                      as: "mention",
+                      cond: { $ne: ["$$mention", id] },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+  ]).exec();
+}
+
 module.exports = {
   findByUser,
   findById,
   findPhotosMentioningUser,
   findMostRecentByUser,
   findMostCommentedByUser,
+  findAllByUser,
   create,
   save,
+  deleteById,
+  deleteByUser,
+  deleteComment,
+  pullCommentsByAuthor,
+  pullFromSharedWith,
+  pullMentionsOfUser,
 };

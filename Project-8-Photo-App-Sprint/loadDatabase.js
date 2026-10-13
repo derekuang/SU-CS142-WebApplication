@@ -119,18 +119,21 @@ Promise.all(removePromises)
 
             if (photo.comments) {
               photo.comments.forEach(function (comment) {
-                photoObj.comments = photoObj.comments.concat([
-                  {
-                    comment: comment.comment,
-                    date_time: comment.date_time,
-                    user_id: comment.user.objectID,
-                  },
-                ]);
+                photoObj.comments.push({
+                  comment: comment.comment,
+                  date_time: comment.date_time,
+                  user_id: comment.user.objectID,
+                });
+                // Capture the new subdocument's id so the comment's activity
+                // can be tied to it (and removed precisely if it is deleted).
+                const commentId =
+                  photoObj.comments[photoObj.comments.length - 1]._id;
                 activities.push({
                   user_id: comment.user.objectID,
                   type: ACTIVITY_TYPES.ADD_COMMENT,
                   date_time: comment.date_time,
                   photo_id: photoObj._id,
+                  comment_id: commentId,
                 });
                 console.log(
                   "Adding comment of length %d by user %s to photo %s",

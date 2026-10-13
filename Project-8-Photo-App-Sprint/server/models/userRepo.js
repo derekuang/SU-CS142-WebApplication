@@ -84,6 +84,16 @@ function existsByLoginName(loginName) {
   return User.exists({ login_name: loginName }).then((doc) => Boolean(doc));
 }
 
+/**
+ * Delete a user by their Mongo `_id`, used by the account-deletion cascade.
+ *
+ * @param {string} id
+ * @returns {Promise<object>} The delete result ({ deletedCount }).
+ */
+function deleteById(id) {
+  return User.deleteOne({ _id: id }).exec();
+}
+
 module.exports = {
   findByLoginName,
   findById,
@@ -91,4 +101,5 @@ module.exports = {
   findExistingIds,
   create,
   existsByLoginName,
+  deleteById,
 };

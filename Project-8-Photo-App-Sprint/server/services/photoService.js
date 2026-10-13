@@ -11,11 +11,15 @@ const mongoose = require("mongoose");
 const photoRepo = require("../models/photoRepo.js");
 const userRepo = require("../models/userRepo.js");
 const activityService = require("./activityService.js");
+const { removeImage } = require("./photoFiles.js");
 const ACTIVITY_TYPES = require("../models/activityTypes.js");
 
 const COMMENT_REQUIRED = "Comment text is required";
 const PHOTO_NOT_FOUND = "Photo not found";
 const PHOTO_LOAD_FAILED = "Unable to load photo";
+const COMMENT_NOT_FOUND = "Comment not found";
+const NOT_PHOTO_OWNER = "Not your photo";
+const NOT_COMMENT_OWNER = "Not your comment";
 const COMMENT_ADD_FAILED = "Unable to add comment";
 const PHOTO_ADD_FAILED = "Unable to add photo";
 const INVALID_SHARED_LIST = "Invalid shared list";
@@ -193,6 +197,9 @@ function addComment(photoId, userId, rawText) {
           user_id: userId,
           mentions: validMentionIds,
         });
+        // The new subdocument's id lets its ADD_COMMENT activity be deleted
+        // precisely if the comment is later removed.
+        const commentId = photo.comments[photo.comments.length - 1]._id;
         return photoRepo
           .save(photo)
           .then((updatedPhoto) => {
@@ -200,6 +207,7 @@ function addComment(photoId, userId, rawText) {
               ACTIVITY_TYPES.ADD_COMMENT,
               userId,
               photoId,
+              commentId,
             );
             return { photo: updatedPhoto };
           })
@@ -207,6 +215,94 @@ function addComment(photoId, userId, rawText) {
       });
     },
     () => ({ error: PHOTO_LOAD_FAILED }),
+  );
+}
+
+/**
+ * Delete a photo the acting user owns.
+ *
+ * Only the owner may delete a photo. The photo's activity records are removed
+ * first, then the document, then the image file (best-effort, so a failed unlink
+ * never fails the request). Because the image is removed last, a failure midway
+ * leaves at worst an orphaned file - never a database record pointing at a
+ * missing image.
+ *
+ * @param {string} photoId
+ * @param {string} userId The acting user's `_id` (must be the owner).
+ * @returns {Promise<{ok: true}|{error: string, status: number}>}
+ */
+function deletePhoto(photoId, userId) {
+  if (!mongoose.Types.ObjectId.isValid(photoId)) {
+    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
+  }
+
+  return photoRepo.findById(photoId).then(
+    (photo) => {
+      if (!photo) {
+        return { error: PHOTO_NOT_FOUND, status: 404 };
+      }
+      if (String(photo.user_id) !== String(userId)) {
+        return { error: NOT_PHOTO_OWNER, status: 403 };
+      }
+
+      const fileName = photo.file_name;
+      return activityService
+        .removeByPhotoId(photoId)
+        .then(() => photoRepo.deleteById(photoId))
+        .then(() => {
+          removeImage(fileName);
+          return { ok: true };
+        });
+    },
+    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
+  );
+}
+
+/**
+ * Delete one of the acting user's comments from a photo.
+ *
+ * Comments are embedded in the photo, so the photo is loaded first: a missing
+ * photo (or a malformed id) is reported as "not found" and a missing comment as
+ * "comment not found". Only the comment's author may delete it - the photo's
+ * owner has no say over other people's comments. Visibility is deliberately not
+ * re-checked: a user may always delete a comment they wrote, even if the photo
+ * has since been restricted away from them.
+ *
+ * The comment's activity is removed by its `comment_id`, so the author's other
+ * comments on the same photo keep their feed entries.
+ *
+ * @param {string} photoId
+ * @param {string} commentId The comment subdocument's `_id`.
+ * @param {string} userId The acting user's `_id` (must be the comment author).
+ * @returns {Promise<{ok: true}|{error: string, status: number}>}
+ */
+function deleteComment(photoId, commentId, userId) {
+  if (!mongoose.Types.ObjectId.isValid(photoId)) {
+    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
+  }
+
+  return photoRepo.findById(photoId).then(
+    (photo) => {
+      if (!photo) {
+        return { error: PHOTO_NOT_FOUND, status: 404 };
+      }
+      if (!mongoose.Types.ObjectId.isValid(commentId)) {
+        return { error: COMMENT_NOT_FOUND, status: 404 };
+      }
+      const comment = photo.comments.id(commentId);
+      if (!comment) {
+        return { error: COMMENT_NOT_FOUND, status: 404 };
+      }
+      if (String(comment.user_id) !== String(userId)) {
+        return { error: NOT_COMMENT_OWNER, status: 403 };
+      }
+
+      return activityService
+        .removeByCommentId(commentId)
+        .then(() => photoRepo.deleteComment(photoId, commentId))
+        .then(() => ({ ok: true }));
+    },
+    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
   );
 }
 
@@ -264,6 +360,8 @@ module.exports = {
   shapePhotos,
   createPhoto,
   addComment,
+  deletePhoto,
+  deleteComment,
   getUsage,
   getMentionsOfUser,
 };

@@ -22,17 +22,53 @@ const DEFAULT_LIMIT = 5;
  * @param {string} type One of ACTIVITY_TYPES.
  * @param {string} userId The acting user's `_id`.
  * @param {string} [photoId] The related photo's `_id` (uploads/comments only).
+ * @param {string} [commentId] The related comment's `_id` (comments only).
  * @returns {Promise<void>} Always resolves.
  */
-function record(type, userId, photoId) {
+function record(type, userId, photoId, commentId) {
   const activityData = { user_id: userId, type };
   if (photoId !== undefined && photoId !== null) {
     activityData.photo_id = photoId;
+  }
+  if (commentId !== undefined && commentId !== null) {
+    activityData.comment_id = commentId;
   }
 
   return activityRepo.create(activityData).catch((err) => {
     console.log("Error recording activity:", err);
   });
+}
+
+/**
+ * Remove the activity that belongs to a single comment.
+ *
+ * @param {string} commentId The deleted comment's `_id`.
+ * @returns {Promise<object>} The delete result.
+ */
+function removeByCommentId(commentId) {
+  return activityRepo.deleteByCommentId(commentId);
+}
+
+/**
+ * Remove every activity that refers to a photo (its upload and its comments').
+ *
+ * @param {string} photoId The deleted photo's `_id`.
+ * @returns {Promise<object>} The delete result.
+ */
+function removeByPhotoId(photoId) {
+  return activityRepo.deleteByPhotoId(photoId);
+}
+
+/**
+ * Remove the activities a deleted account is responsible for: the ones it
+ * performed and the ones recorded against the photos it owned.
+ *
+ * @param {string} userId The deleted user's `_id`.
+ * @param {Array<string>} photoIds The ids of the user's deleted photos.
+ * @returns {Promise<object>} The delete result.
+ */
+function removeForUserAndPhotos(userId, photoIds) {
+  return activityRepo.deleteByUserAndPhotos(userId, photoIds);
 }
 
 /**
@@ -100,5 +136,8 @@ module.exports = {
   ACTIVITY_TYPES,
   DEFAULT_LIMIT,
   record,
+  removeByCommentId,
+  removeByPhotoId,
+  removeForUserAndPhotos,
   getRecentActivities,
 };

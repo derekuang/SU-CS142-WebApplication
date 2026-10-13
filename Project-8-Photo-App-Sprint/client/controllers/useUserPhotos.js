@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getPhotosOfUser, addComment } from "../model/api/photoApi.js";
+import {
+  getPhotosOfUser,
+  addComment,
+  deletePhoto,
+  deleteComment,
+} from "../model/api/photoApi.js";
 import { listUsers } from "../model/api/userApi.js";
 import getErrorMessage from "../model/api/errors.js";
 
@@ -9,8 +14,9 @@ import getErrorMessage from "../model/api/errors.js";
  *
  * Fetches the photos for `userId`, refetching when the id changes or when
  * `refreshToken` changes (so an upload elsewhere refreshes the view). Also
- * exposes `onAddComment(photoId, text)`, which submits a comment, reloads on
- * success, and rejects with a displayable message on failure.
+ * exposes the mutating actions - `onAddComment`, `onDeletePhoto`,
+ * `onDeleteComment` - each of which submits, reloads on success, and rejects
+ * with a displayable message on failure.
  *
  * Loads the user list once to provide the @mention autocomplete suggestions.
  */
@@ -19,7 +25,7 @@ function useUserPhotos(userId, refreshToken) {
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
 
   const reload = useCallback(() => {
-    getPhotosOfUser(userId).then(setPhotos);
+    return getPhotosOfUser(userId).then(setPhotos);
   }, [userId]);
 
   useEffect(() => {
@@ -52,7 +58,39 @@ function useUserPhotos(userId, refreshToken) {
     [reload],
   );
 
-  return { photos, onAddComment, mentionSuggestions };
+  const onDeletePhoto = useCallback(
+    (photoId) => {
+      return deletePhoto(photoId)
+        .then(() => reload())
+        .catch((err) => {
+          return Promise.reject(
+            getErrorMessage(err, "Unable to delete photo. Please try again."),
+          );
+        });
+    },
+    [reload],
+  );
+
+  const onDeleteComment = useCallback(
+    (photoId, commentId) => {
+      return deleteComment(photoId, commentId)
+        .then(() => reload())
+        .catch((err) => {
+          return Promise.reject(
+            getErrorMessage(err, "Unable to delete comment. Please try again."),
+          );
+        });
+    },
+    [reload],
+  );
+
+  return {
+    photos,
+    onAddComment,
+    onDeletePhoto,
+    onDeleteComment,
+    mentionSuggestions,
+  };
 }
 
 export default useUserPhotos;

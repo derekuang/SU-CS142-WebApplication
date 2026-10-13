@@ -18,11 +18,15 @@ import "./styles.css";
 function UserPhotos(props) {
   const { userId, photoId } = props.match.params;
   const advanced = props.advancedFeatures;
+  const viewerId = props.currentUser ? props.currentUser._id : null;
 
-  const { photos, onAddComment, mentionSuggestions } = useUserPhotos(
-    userId,
-    props.refreshToken,
-  );
+  const {
+    photos,
+    onAddComment,
+    onDeletePhoto,
+    onDeleteComment,
+    mentionSuggestions,
+  } = useUserPhotos(userId, props.refreshToken);
 
   // Which photo the stepper is on. Falls back to the first photo when no (or an
   // unknown, e.g. deleted) id is in the URL. -1 means there is nothing to show.
@@ -40,12 +44,38 @@ function UserPhotos(props) {
     }
   };
 
+  // After a delete the reload replaces the list, so point the URL at the photo
+  // that takes the deleted one's place (clamped to the new last photo) rather
+  // than letting the "unknown id" fallback jump back to the first photo.
+  const handleDeletePhoto = (deletedPhotoId) => {
+    const remaining = (photos || []).filter(
+      (photo) => photo._id !== deletedPhotoId,
+    );
+    const deletedIndex = (photos || []).findIndex(
+      (photo) => photo._id === deletedPhotoId,
+    );
+
+    return onDeletePhoto(deletedPhotoId).then(() => {
+      if (!advanced || remaining.length === 0) {
+        return;
+      }
+      const nextIndex = Math.min(
+        deletedIndex < 0 ? 0 : deletedIndex,
+        remaining.length - 1,
+      );
+      props.history.replace(`/photos/${userId}/${remaining[nextIndex]._id}`);
+    });
+  };
+
   return (
     <UserPhotosView
       advancedFeatures={advanced}
       photos={photos}
       currentIndex={currentIndex}
+      viewerId={viewerId}
       onAddComment={onAddComment}
+      onDeletePhoto={handleDeletePhoto}
+      onDeleteComment={onDeleteComment}
       mentionSuggestions={mentionSuggestions}
       onPrev={() => goToIndex(currentIndex - 1)}
       onNext={() => goToIndex(currentIndex + 1)}

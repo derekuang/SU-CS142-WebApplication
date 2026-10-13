@@ -39,3 +39,15 @@ export function logout() {
 export function currentUser() {
   return axios.get("/admin/currentUser").then((response) => response.data);
 }
+
+/**
+ * Permanently delete the logged in user's account. The server removes every
+ * photo, comment, activity, mention, and share-list entry that refers to the
+ * user and destroys the session, so the caller should return to the login
+ * screen on success.
+ *
+ * @returns {Promise<object>} The server's confirmation.
+ */
+export function deleteAccount() {
+  return axios.delete("/admin/currentUser").then((response) => response.data);
+}

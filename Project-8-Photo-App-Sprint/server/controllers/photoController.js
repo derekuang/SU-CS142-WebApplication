@@ -110,9 +110,31 @@ function getMentions(request, response) {
     });
 }
 
+/**
+ * DELETE /photos/:photo_id - Permanently delete one of the logged in user's
+ * photos (with its comments, activity records, and image file). The service
+ * reports a missing photo as 404 and someone else's photo as 403.
+ */
+function deletePhoto(request, response) {
+  photoService
+    .deletePhoto(request.params.photo_id, request.session.user_id)
+    .then((result) => {
+      if (result.error) {
+        response.status(result.status || 400).send(result.error);
+        return;
+      }
+      response.status(200).send({ status: "ok" });
+    })
+    .catch((err) => {
+      console.log("Error deleting photo:", err);
+      response.status(500).send("Unable to delete photo");
+    });
+}
+
 module.exports = {
   photosOfUser,
   addPhoto,
   getUsage,
   getMentions,
+  deletePhoto,
 };

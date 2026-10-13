@@ -33,6 +33,7 @@ function TopBarView({
   severity,
   onToggleAdvancedFeatures,
   onLogout,
+  onRequestDeleteAccount,
   onFileSelected,
   onCloseMessage,
 }) {
@@ -89,6 +90,15 @@ function TopBarView({
                 </Link>
               )}
             </Typography>
+            {userIsLoggedIn ? (
+              <Button
+                color="inherit"
+                onClick={onRequestDeleteAccount}
+                sx={{ ml: 2 }}
+              >
+                Delete Account
+              </Button>
+            ) : null}
             {userIsLoggedIn ? (
               <Button color="inherit" onClick={onLogout} sx={{ ml: 2 }}>
                 Logout

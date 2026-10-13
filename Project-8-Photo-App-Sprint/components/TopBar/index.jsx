@@ -3,8 +3,10 @@ import { withRouter } from "react-router-dom";
 
 import useTopBar from "../../client/controllers/useTopBar.js";
 import useUploadPhoto from "../../client/controllers/useUploadPhoto.js";
+import useDeleteAccount from "../../client/controllers/useDeleteAccount.js";
 import TopBarView from "../../client/views/TopBarView.jsx";
 import UploadPhotoDialogView from "../../client/views/UploadPhotoDialogView.jsx";
+import DeleteAccountDialogView from "../../client/views/DeleteAccountDialogView.jsx";
 
 import "./styles.css";
 
@@ -31,6 +33,8 @@ function TopBar(props) {
     onMessage: notify,
   });
 
+  const deleteAccountFlow = useDeleteAccount(props.onAccountDeleted);
+
   return (
     <React.Fragment>
       <TopBarView
@@ -43,6 +47,7 @@ function TopBar(props) {
         severity={severity}
         onToggleAdvancedFeatures={props.onToggleAdvancedFeatures}
         onLogout={props.onLogout}
+        onRequestDeleteAccount={deleteAccountFlow.onRequest}
         onFileSelected={upload.onFileSelected}
         onCloseMessage={onCloseMessage}
       />
@@ -57,6 +62,13 @@ function TopBar(props) {
         onChangeSelected={upload.onChangeSelected}
         onConfirm={upload.onConfirm}
         onClose={upload.onClose}
+      />
+      <DeleteAccountDialogView
+        open={deleteAccountFlow.open}
+        busy={deleteAccountFlow.busy}
+        error={deleteAccountFlow.error}
+        onConfirm={deleteAccountFlow.onConfirm}
+        onClose={deleteAccountFlow.onCancel}
       />
     </React.Fragment>
   );
