@@ -78,7 +78,5 @@ off on every launch).
 
 ## Before submitting
 
-- Fill in `submission.txt` (stories, points, video URL). Full spec:
-  `CS142 Project #8 (2023 Spr) - 中文.md`.
 - Delete `node_modules/` (including `test/node_modules/`) and `compiled/`, then
   verify `node loadDatabase.js` and `node webServer.js` still work from clean.
