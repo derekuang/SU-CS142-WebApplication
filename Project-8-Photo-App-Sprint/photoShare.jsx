@@ -12,6 +12,7 @@ import UserDetail from "./components/UserDetail";
 import UserList from "./components/UserList";
 import UserPhotos from "./components/UserPhotos";
 import LoginRegister from "./components/LoginRegister";
+import Activities from "./components/Activities";
 
 // Store actions shared with the child views. They live at module scope because
 // they only talk to the session store and need no component instance.
@@ -164,6 +165,9 @@ class PhotoShare extends React.Component {
                   advancedFeatures={this.state.advancedFeatures}
                   refreshToken={this.state.photosRefreshToken}
                 />
+              </Route>
+              <Route path="/activities">
+                <Activities />
               </Route>
               <Route path="/users" component={UserList} />
               <Redirect to={`/users/${this.state.user._id}`} />

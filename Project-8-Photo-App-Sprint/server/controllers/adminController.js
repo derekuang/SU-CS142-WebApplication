@@ -7,6 +7,8 @@
  */
 
 const authService = require("../services/authService.js");
+const activityService = require("../services/activityService.js");
+const ACTIVITY_TYPES = require("../models/activityTypes.js");
 const userRepo = require("../models/userRepo.js");
 
 /**
@@ -29,6 +31,7 @@ function login(request, response) {
       }
 
       request.session.user_id = user._id;
+      activityService.record(ACTIVITY_TYPES.USER_LOGIN, user._id);
       response.status(200).send(authService.toSafeUser(user));
     })
     .catch((err) => {
@@ -46,6 +49,11 @@ function logout(request, response) {
     response.status(400).send("Not logged in");
     return;
   }
+
+  // Read the id before `destroy` clears the session, then record the logout
+  // (best-effort, so it can never block the response).
+  const userId = request.session.user_id;
+  activityService.record(ACTIVITY_TYPES.USER_LOGOUT, userId);
 
   request.session.destroy((err) => {
     if (err) {

@@ -7,6 +7,8 @@
  */
 
 const userRepo = require("../models/userRepo.js");
+const activityService = require("./activityService.js");
+const ACTIVITY_TYPES = require("../models/activityTypes.js");
 const cs142password = require("../../cs142password.js");
 
 /**
@@ -119,7 +121,11 @@ function register(fields) {
           description: body.description || "",
           occupation: body.occupation || "",
         })
-        .then((user) => ({ user }));
+        .then((user) => {
+          // Best-effort: a failed activity write must not fail registration.
+          activityService.record(ACTIVITY_TYPES.USER_REGISTER, user._id);
+          return { user };
+        });
     })
     .catch(() => ({ error: REGISTRATION_FAILED }));
 }

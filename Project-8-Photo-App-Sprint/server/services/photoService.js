@@ -10,6 +10,8 @@ const mongoose = require("mongoose");
 
 const photoRepo = require("../models/photoRepo.js");
 const userRepo = require("../models/userRepo.js");
+const activityService = require("./activityService.js");
+const ACTIVITY_TYPES = require("../models/activityTypes.js");
 
 const COMMENT_REQUIRED = "Comment text is required";
 const PHOTO_NOT_FOUND = "Photo not found";
@@ -127,7 +129,10 @@ function createPhoto({ file_name, userId, sharedWithRaw }) {
   if (sharedWithRaw === undefined) {
     return photoRepo
       .create(base)
-      .then((photo) => ({ photo }))
+      .then((photo) => {
+        activityService.record(ACTIVITY_TYPES.PHOTO_UPLOAD, userId, photo._id);
+        return { photo };
+      })
       .catch(() => ({ error: PHOTO_ADD_FAILED }));
   }
 
@@ -144,7 +149,10 @@ function createPhoto({ file_name, userId, sharedWithRaw }) {
   return userRepo
     .findExistingIds(ids)
     .then((validIds) => photoRepo.create({ ...base, shared_with: validIds }))
-    .then((photo) => ({ photo }))
+    .then((photo) => {
+      activityService.record(ACTIVITY_TYPES.PHOTO_UPLOAD, userId, photo._id);
+      return { photo };
+    })
     .catch(() => ({ error: PHOTO_ADD_FAILED }));
 }
 
@@ -187,7 +195,14 @@ function addComment(photoId, userId, rawText) {
         });
         return photoRepo
           .save(photo)
-          .then((updatedPhoto) => ({ photo: updatedPhoto }))
+          .then((updatedPhoto) => {
+            activityService.record(
+              ACTIVITY_TYPES.ADD_COMMENT,
+              userId,
+              photoId,
+            );
+            return { photo: updatedPhoto };
+          })
           .catch(() => ({ error: COMMENT_ADD_FAILED }));
       });
     },

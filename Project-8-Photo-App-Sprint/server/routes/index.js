@@ -15,6 +15,7 @@ const adminController = require("../controllers/adminController.js");
 const userController = require("../controllers/userController.js");
 const photoController = require("../controllers/photoController.js");
 const commentController = require("../controllers/commentController.js");
+const activityController = require("../controllers/activityController.js");
 const testController = require("../controllers/testController.js");
 
 const router = express.Router();
@@ -50,5 +51,8 @@ router.post(
   requireLogin,
   commentController.addComment,
 );
+
+// Activities.
+router.get("/activities", requireLogin, activityController.list);
 
 module.exports = router;

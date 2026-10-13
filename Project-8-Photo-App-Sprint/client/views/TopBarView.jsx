@@ -71,6 +71,11 @@ function TopBarView({
                 />
               </Button>
             ) : null}
+            {userIsLoggedIn ? (
+              <Button href="#/activities" color="inherit" sx={{ mr: 2 }}>
+                Activities
+              </Button>
+            ) : null}
             <Typography variant="h5" color="inherit">
               {userIsLoggedIn ? (
                 content

@@ -26,7 +26,11 @@ const cs142models = require("./modelData/photoApp.js").cs142models;
 // Load the Mongoose schema for Use and Photo
 const User = require("./schema/user.js");
 const Photo = require("./schema/photo.js");
+const Activity = require("./schema/activity.js");
 const SchemaInfo = require("./schema/schemaInfo.js");
+
+// The shared activity-type constants used to seed the activity feed.
+const ACTIVITY_TYPES = require("./server/models/activityTypes.js");
 
 // Used to salt and hash the seeded users' passwords.
 const cs142password = require("./cs142password.js");
@@ -37,6 +41,7 @@ const versionString = "1.0";
 const removePromises = [
   User.deleteMany({}),
   Photo.deleteMany({}),
+  Activity.deleteMany({}),
   SchemaInfo.deleteMany({}),
 ];
 
@@ -97,6 +102,21 @@ Promise.all(removePromises)
         })
           .then(function (photoObj) {
             photo.objectID = photoObj._id;
+
+            // Seed the activity feed from the initial data: one photo-upload
+            // activity per photo and one add-comment activity per comment, so
+            // the feed has content right after `node loadDatabase.js`. Their
+            // date_time is the photo's/comment's own timestamp so the feed
+            // reads as a history. Register/login/logout are not fabricated.
+            const activities = [
+              {
+                user_id: mapFakeId2RealId[photo.user_id],
+                type: ACTIVITY_TYPES.PHOTO_UPLOAD,
+                date_time: photo.date_time,
+                photo_id: photoObj._id,
+              },
+            ];
+
             if (photo.comments) {
               photo.comments.forEach(function (comment) {
                 photoObj.comments = photoObj.comments.concat([
@@ -106,6 +126,12 @@ Promise.all(removePromises)
                     user_id: comment.user.objectID,
                   },
                 ]);
+                activities.push({
+                  user_id: comment.user.objectID,
+                  type: ACTIVITY_TYPES.ADD_COMMENT,
+                  date_time: comment.date_time,
+                  photo_id: photoObj._id,
+                });
                 console.log(
                   "Adding comment of length %d by user %s to photo %s",
                   comment.comment.length,
@@ -114,13 +140,18 @@ Promise.all(removePromises)
                 );
               });
             }
-            photoObj.save();
+
             console.log(
               "Adding photo:",
               photo.file_name,
               " of user ID ",
               photoObj.user_id
             );
+
+            return Promise.all([
+              photoObj.save(),
+              Activity.create(activities),
+            ]);
           })
           .catch(function (err) {
             console.error("Error create user", err);
