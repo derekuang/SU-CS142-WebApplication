@@ -7,11 +7,6 @@ import {
   CardContent,
   CardMedia,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Divider,
   Link,
   List,
@@ -24,6 +19,7 @@ import Grid from "@mui/material/Unstable_Grid2";
 
 import humanize from "../utils/humanize.js";
 import renderCommentHtml from "../utils/mentions.js";
+import ConfirmDialogView from "./ConfirmDialogView.jsx";
 
 /**
  * Presentational view for a user's photos and their comments.
@@ -229,48 +225,6 @@ function CommentForm({ photoId, suggestions, onSubmit }) {
         </Typography>
       ) : null}
     </Box>
-  );
-}
-
-/**
- * Confirmation dialog shared by the photo and comment delete buttons.
- *
- * Reports the outcome through `error` (shown inline) while the request is in
- * flight via `busy`, so a failed delete keeps the dialog open with the server's
- * message instead of silently closing.
- */
-function DeleteConfirmDialog({ open, kind, busy, error, onConfirm, onCancel }) {
-  const isPhoto = kind === "photo";
-
-  return (
-    <Dialog open={open} onClose={onCancel}>
-      <DialogTitle>{isPhoto ? "Delete photo?" : "Delete comment?"}</DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          {isPhoto
-            ? "This photo and all of its comments will be permanently deleted."
-            : "This comment will be permanently deleted."}
-        </DialogContentText>
-        {error ? (
-          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-            {error}
-          </Typography>
-        ) : null}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onCancel} disabled={busy}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          color="error"
-          onClick={onConfirm}
-          disabled={busy}
-        >
-          Delete
-        </Button>
-      </DialogActions>
-    </Dialog>
   );
 }
 
@@ -514,10 +468,18 @@ function UserPhotosView({
     return <Box>Loading...</Box>;
   }
 
+  const isPhotoDelete = Boolean(pending) && pending.kind === "photo";
+
   const dialog = (
-    <DeleteConfirmDialog
+    <ConfirmDialogView
       open={Boolean(pending)}
-      kind={pending ? pending.kind : null}
+      title={isPhotoDelete ? "Delete photo?" : "Delete comment?"}
+      message={
+        isPhotoDelete
+          ? "This photo and all of its comments will be permanently deleted."
+          : "This comment will be permanently deleted."
+      }
+      confirmLabel="Delete"
       busy={busy}
       error={error}
       onConfirm={confirmDelete}

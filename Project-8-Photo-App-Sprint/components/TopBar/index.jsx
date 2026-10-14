@@ -68,7 +68,7 @@ function TopBar(props) {
         busy={deleteAccountFlow.busy}
         error={deleteAccountFlow.error}
         onConfirm={deleteAccountFlow.onConfirm}
-        onClose={deleteAccountFlow.onCancel}
+        onCancel={deleteAccountFlow.onCancel}
       />
     </React.Fragment>
   );
