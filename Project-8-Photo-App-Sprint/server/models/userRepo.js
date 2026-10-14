@@ -6,6 +6,8 @@
  * methods so query details stay out of the request-handling code.
  */
 
+const mongoose = require("mongoose");
+
 const User = require("../../schema/user.js");
 
 /**
@@ -85,6 +87,24 @@ function existsByLoginName(loginName) {
 }
 
 /**
+ * Check whether a user id still refers to an existing account.
+ *
+ * Used by the login guard: a session can outlive the account it names (for
+ * example another browser's cookie after the account was deleted), so every
+ * guarded route verifies the account still exists. A malformed id resolves to
+ * false rather than throwing.
+ *
+ * @param {string} id
+ * @returns {Promise<boolean>} True if the account exists.
+ */
+function existsById(id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return Promise.resolve(false);
+  }
+  return User.exists({ _id: id }).then((doc) => Boolean(doc));
+}
+
+/**
  * Delete a user by their Mongo `_id`, used by the account-deletion cascade.
  *
  * @param {string} id
@@ -101,5 +121,6 @@ module.exports = {
   findExistingIds,
   create,
   existsByLoginName,
+  existsById,
   deleteById,
 };
