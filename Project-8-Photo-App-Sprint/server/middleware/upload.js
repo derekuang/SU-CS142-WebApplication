@@ -10,9 +10,10 @@ const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
 
+const { IMAGES_DIR } = require("../config/paths.js");
+
 const photoStorage = multer.diskStorage({
-  // This file lives in server/middleware, so walk back to the project root.
-  destination: path.join(__dirname, "..", "..", "images"),
+  destination: IMAGES_DIR,
   filename: function (request, file, callback) {
     // Keep the client-supplied name in the stored file name so the uploader can
     // recognize the photo it just sent, but sanitize it and prefix a unique
