@@ -286,11 +286,13 @@ function pullFromSharedWith(userId) {
 /**
  * Remove a user's id from every comment's `mentions` array.
  *
- * Mentions live inside comments, so a plain `$pull` on `comments` would delete
- * the whole comment. Instead a pipeline update maps over the comments and
- * filters just the mentions array, keeping the invariant that a mention never
- * points at a nonexistent user. The author's own comments have already been
- * removed by `pullCommentsByAuthor`, so this runs on the survivors.
+ * Mentions live inside comments, so a `$pull` aimed at `comments` (matching
+ * `mentions` as a condition) would delete the whole comment. Pointing `$pull`
+ * at the inner `mentions` array through the all-positional `$[]` operator
+ * removes only the id from every comment and leaves the comments themselves
+ * untouched, keeping the invariant that a mention never points at a nonexistent
+ * user. The author's own comments have already been removed by
+ * `pullCommentsByAuthor`, so this runs on the survivors.
  *
  * @param {string} userId The deleted user's `_id`.
  * @returns {Promise<object>} The update result (matched/modified counts).
@@ -299,33 +301,13 @@ function pullMentionsOfUser(userId) {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
   }
+  // Cast explicitly: `$pull` compares against the stored mention ids, and the
+  // all-positional path is not one Mongoose casts for us.
   const id = mongoose.Types.ObjectId(userId);
-  return Photo.updateMany({ "comments.mentions": id }, [
-    {
-      $set: {
-        comments: {
-          $map: {
-            input: "$comments",
-            as: "comment",
-            in: {
-              $mergeObjects: [
-                "$$comment",
-                {
-                  mentions: {
-                    $filter: {
-                      input: { $ifNull: ["$$comment.mentions", []] },
-                      as: "mention",
-                      cond: { $ne: ["$$mention", id] },
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        },
-      },
-    },
-  ]).exec();
+  return Photo.updateMany(
+    { "comments.mentions": id },
+    { $pull: { "comments.$[].mentions": id } },
+  ).exec();
 }
 
 module.exports = {
