@@ -26,10 +26,21 @@ const userDetailProperties = [
   "description",
   "occupation",
 ];
-// Valid properties of the photo model
-const photoProperties = ["file_name", "date_time", "user_id", "_id", "comments"];
-// Valid comments properties
-const commentProperties = ["comment", "date_time", "_id", "user"];
+// Valid properties of the photo model. The Sprint's like/favorite features add
+// likeCount/likedByViewer/favoritedByViewer (see photoService.shapePhotos).
+const photoProperties = [
+  "file_name",
+  "date_time",
+  "user_id",
+  "_id",
+  "comments",
+  "likeCount",
+  "likedByViewer",
+  "favoritedByViewer",
+];
+// Valid comments properties. The Sprint's @mention feature adds `mentions`
+// (an array of mentioned users) to each comment.
+const commentProperties = ["comment", "date_time", "_id", "user", "mentions"];
 
 function assertEqualDates(d1, d2) {
   assert(new Date(d1).valueOf() === new Date(d2).valueOf());
