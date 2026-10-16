@@ -21,7 +21,7 @@ const DEFAULT_LIMIT = 5;
  *
  * @param {string} type One of ACTIVITY_TYPES.
  * @param {string} userId The acting user's `_id`.
- * @param {string} [photoId] The related photo's `_id` (uploads/comments only).
+ * @param {string} [photoId] The related photo's `_id` (uploads/comments/likes).
  * @param {string} [commentId] The related comment's `_id` (comments only).
  * @returns {Promise<void>} Always resolves.
  */
@@ -36,6 +36,23 @@ function record(type, userId, photoId, commentId) {
 
   return activityRepo.create(activityData).catch((err) => {
     console.log("Error recording activity:", err);
+  });
+}
+
+/**
+ * Remove the feed entry for a like that has been taken back.
+ *
+ * Deliberately best-effort, like `record`: the like has already been removed
+ * from the photo, so a failed activity cleanup must not turn into a failed
+ * unlike.
+ *
+ * @param {string} userId The unliking user's `_id`.
+ * @param {string} photoId The photo's `_id`.
+ * @returns {Promise<void>} Always resolves.
+ */
+function removeLike(userId, photoId) {
+  return activityRepo.deleteLike(userId, photoId).catch((err) => {
+    console.log("Error removing like activity:", err);
   });
 }
 
@@ -136,6 +153,7 @@ module.exports = {
   ACTIVITY_TYPES,
   DEFAULT_LIMIT,
   record,
+  removeLike,
   removeByCommentId,
   removeByPhotoId,
   removeForUserAndPhotos,

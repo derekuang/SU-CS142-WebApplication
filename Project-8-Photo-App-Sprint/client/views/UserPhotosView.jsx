@@ -1,5 +1,7 @@
 import React from "react";
 import { MentionsInput, Mention } from "react-mentions";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
 import {
   Box,
   Button,
@@ -8,11 +10,13 @@ import {
   CardMedia,
   Chip,
   Divider,
+  IconButton,
   Link,
   List,
   ListItem,
   ListItemText,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Unstable_Grid2";
@@ -78,6 +82,58 @@ const mentionsStyle = {
     },
   },
 };
+
+/**
+ * The like button shown on every photo: a filled thumb in the primary color
+ * once the viewer has liked the photo, an outlined thumb otherwise, next to the
+ * like count. It owns only its in-flight state, so a double click cannot fire
+ * two requests; the optimistic update itself lives in the controller.
+ */
+function LikeButton({ photo, onToggleLike }) {
+  const [busy, setBusy] = React.useState(false);
+  const liked = Boolean(photo.likedByViewer);
+  const count = photo.likeCount || 0;
+
+  const handleClick = () => {
+    setBusy(true);
+    onToggleLike(photo._id, !liked)
+      // A failed like is already rolled back by the controller (the button and
+      // count visibly snap back), so there is no separate error to show here.
+      .catch(() => {})
+      .then(() => setBusy(false));
+  };
+
+  return (
+    <Box
+      component="span"
+      sx={{ display: "inline-flex", alignItems: "center", ml: 1 }}
+    >
+      <Tooltip title={liked ? "Unlike this photo" : "Like this photo"}>
+        {/* The Tooltip needs a child that can hold a ref and still receive
+            pointer events while the button is disabled. */}
+        <span>
+          <IconButton
+            size="small"
+            color={liked ? "primary" : "default"}
+            aria-label={liked ? "Unlike this photo" : "Like this photo"}
+            aria-pressed={liked}
+            disabled={busy}
+            onClick={handleClick}
+          >
+            {liked ? (
+              <ThumbUpIcon fontSize="small" />
+            ) : (
+              <ThumbUpOutlinedIcon fontSize="small" />
+            )}
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Typography variant="body2" color="text.secondary">
+        {count}
+      </Typography>
+    </Box>
+  );
+}
 
 function commentList(comments, photoId, viewerId, onRequestDeleteComment) {
   return (
@@ -262,6 +318,7 @@ function PhotoGridView({
   onAddComment,
   onRequestDeletePhoto,
   onRequestDeleteComment,
+  onToggleLike,
   mentionSuggestions,
 }) {
   return (
@@ -282,6 +339,7 @@ function PhotoGridView({
                   color="primary"
                   variant="outlined"
                 />
+                <LikeButton photo={photo} onToggleLike={onToggleLike} />
                 {photo.user_id === viewerId ? (
                   <Button
                     size="small"
@@ -330,6 +388,7 @@ function PhotoStepperView({
   onAddComment,
   onRequestDeletePhoto,
   onRequestDeleteComment,
+  onToggleLike,
   mentionSuggestions,
   onPrev,
   onNext,
@@ -366,6 +425,7 @@ function PhotoStepperView({
             color="primary"
             variant="outlined"
           />
+          <LikeButton photo={photo} onToggleLike={onToggleLike} />
           {photo.user_id === viewerId ? (
             <Button
               size="small"
@@ -413,6 +473,7 @@ function UserPhotosView({
   onAddComment,
   onDeletePhoto,
   onDeleteComment,
+  onToggleLike,
   mentionSuggestions,
   onPrev,
   onNext,
@@ -497,6 +558,7 @@ function UserPhotosView({
           onAddComment={onAddComment}
           onRequestDeletePhoto={requestDeletePhoto}
           onRequestDeleteComment={requestDeleteComment}
+          onToggleLike={onToggleLike}
           mentionSuggestions={mentionSuggestions}
           onPrev={onPrev}
           onNext={onNext}
@@ -514,6 +576,7 @@ function UserPhotosView({
         onAddComment={onAddComment}
         onRequestDeletePhoto={requestDeletePhoto}
         onRequestDeleteComment={requestDeleteComment}
+        onToggleLike={onToggleLike}
         mentionSuggestions={mentionSuggestions}
       />
       {dialog}

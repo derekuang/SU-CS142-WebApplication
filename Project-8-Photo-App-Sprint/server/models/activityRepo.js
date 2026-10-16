@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const Activity = require("../../schema/activity.js");
+const ACTIVITY_TYPES = require("./activityTypes.js");
 
 /**
  * Data-access layer (Model) for the Activity collection.
@@ -142,10 +143,31 @@ function findRecentVisible(viewerId, limit) {
     .exec();
 }
 
+/**
+ * Delete the activity recorded when a user liked a photo.
+ *
+ * A like is identified by the triple (actor, photo, LIKE), so unliking removes
+ * exactly its own feed entry and leaves the same user's other likes - on other
+ * photos - untouched. Unliking a photo that was never liked matches nothing and
+ * is a harmless no-op.
+ *
+ * @param {string} userId The unliking user's `_id`.
+ * @param {string} photoId The photo's `_id`.
+ * @returns {Promise<object>} The delete result ({ deletedCount }).
+ */
+function deleteLike(userId, photoId) {
+  return Activity.deleteMany({
+    user_id: userId,
+    photo_id: photoId,
+    type: ACTIVITY_TYPES.LIKE,
+  }).exec();
+}
+
 module.exports = {
   create,
   deleteByCommentId,
   deleteByPhotoId,
   deleteByUserAndPhotos,
+  deleteLike,
   findRecentVisible,
 };

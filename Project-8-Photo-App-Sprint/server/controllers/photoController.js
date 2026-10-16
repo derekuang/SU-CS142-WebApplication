@@ -22,7 +22,9 @@ function photosOfUser(request, response) {
   photoRepo
     .findByUser(id, request.session.user_id)
     .then((photos) => {
-      response.status(200).send(photoService.shapePhotos(photos));
+      response
+        .status(200)
+        .send(photoService.shapePhotos(photos, request.session.user_id));
     })
     .catch((err) => {
       console.log("Error finding photos:", err);
@@ -131,10 +133,57 @@ function deletePhoto(request, response) {
     });
 }
 
+/**
+ * Translate a `photoService.setLike` result into an HTTP response.
+ *
+ * @param {object} response
+ * @param {{likeCount: number, likedByViewer: boolean}|{error: string,
+ *   status: number}} result
+ */
+function sendLikeResult(response, result) {
+  if (result.error) {
+    response.status(result.status || 400).send(result.error);
+    return;
+  }
+  response.status(200).send(result);
+}
+
+/**
+ * POST /likesOfPhoto/:photo_id - Like a photo the logged in user may see.
+ * Idempotent, and reports the photo's new like count plus the viewer's state.
+ * A missing/unseen/malformed photo is reported as 404.
+ */
+function likePhoto(request, response) {
+  photoService
+    .setLike(request.params.photo_id, request.session.user_id, true)
+    .then((result) => sendLikeResult(response, result))
+    .catch((err) => {
+      console.log("Error liking photo:", err);
+      response.status(500).send("Unable to update like");
+    });
+}
+
+/**
+ * DELETE /likesOfPhoto/:photo_id - Take back the logged in user's like on a
+ * photo. Idempotent (unliking a photo that was never liked is fine). A
+ * missing/unseen/malformed photo is reported as 404.
+ */
+function unlikePhoto(request, response) {
+  photoService
+    .setLike(request.params.photo_id, request.session.user_id, false)
+    .then((result) => sendLikeResult(response, result))
+    .catch((err) => {
+      console.log("Error unliking photo:", err);
+      response.status(500).send("Unable to update like");
+    });
+}
+
 module.exports = {
   photosOfUser,
   addPhoto,
   getUsage,
   getMentions,
   deletePhoto,
+  likePhoto,
+  unlikePhoto,
 };

@@ -51,6 +51,14 @@ router.post(
 );
 router.delete("/photos/:photo_id", requireLogin, photoController.deletePhoto);
 
+// Likes.
+router.post("/likesOfPhoto/:photo_id", requireLogin, photoController.likePhoto);
+router.delete(
+  "/likesOfPhoto/:photo_id",
+  requireLogin,
+  photoController.unlikePhoto,
+);
+
 // Comments.
 router.post(
   "/commentsOfPhoto/:photo_id",

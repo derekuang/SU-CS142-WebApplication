@@ -23,6 +23,7 @@ const NOT_COMMENT_OWNER = "Not your comment";
 const COMMENT_ADD_FAILED = "Unable to add comment";
 const PHOTO_ADD_FAILED = "Unable to add photo";
 const INVALID_SHARED_LIST = "Invalid shared list";
+const LIKE_FAILED = "Unable to update like";
 
 /**
  * Matches a react-mentions mention token in a comment's text. react-mentions'
@@ -60,27 +61,59 @@ function extractMentionIds(text) {
 }
 
 /**
+ * Order photos the way the like-vote story requires: most liked first, and
+ * newest first when two photos have the same number of likes. Sorting is done
+ * here, on the server, so the ordering is part of the API's contract rather
+ * than something a client controller has to reimplement.
+ *
+ * @param {object} a A shaped photo (with `likeCount`/`date_time`).
+ * @param {object} b A shaped photo (with `likeCount`/`date_time`).
+ * @returns {number}
+ */
+function byLikesThenNewest(a, b) {
+  if (b.likeCount !== a.likeCount) {
+    return b.likeCount - a.likeCount;
+  }
+  return new Date(b.date_time) - new Date(a.date_time);
+}
+
+/**
  * Convert Photo documents into the JSON shape the API returns: each comment's
  * populated `user_id` reference becomes a `user` property. This mirrors the
  * transformation the original `/photosOfUser/:id` handler performed.
  *
+ * The stored `likes` array is replaced by the two things the view needs - the
+ * count and whether the viewer is one of the likers - and the raw list is
+ * dropped, so who-liked-what never leaves the server (the same reason the query
+ * strips `shared_with`). The result is ordered by likes then recency.
+ *
  * @param {Array<object>} photos Mongoose Photo documents (comments populated).
- * @returns {Array<object>} Plain photo objects with `comments[].user`.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Array<object>} Plain photo objects with `comments[].user`,
+ *   `likeCount`, and `likedByViewer`, most liked first.
  */
-function shapePhotos(photos) {
-  return photos.map((photo) => {
-    const photoObj = photo.toObject();
-    if (photoObj.comments) {
-      photoObj.comments = photoObj.comments.map((comment) => {
-        const { user_id, ...rest } = comment;
-        return {
-          ...rest,
-          user: user_id,
-        };
-      });
-    }
-    return photoObj;
-  });
+function shapePhotos(photos, viewerId) {
+  return photos
+    .map((photo) => {
+      const photoObj = photo.toObject();
+      const likes = photoObj.likes || [];
+      delete photoObj.likes;
+      photoObj.likeCount = likes.length;
+      photoObj.likedByViewer = likes.some(
+        (id) => String(id) === String(viewerId),
+      );
+      if (photoObj.comments) {
+        photoObj.comments = photoObj.comments.map((comment) => {
+          const { user_id, ...rest } = comment;
+          return {
+            ...rest,
+            user: user_id,
+          };
+        });
+      }
+      return photoObj;
+    })
+    .sort(byLikesThenNewest);
 }
 
 /**
@@ -215,6 +248,56 @@ function addComment(photoId, userId, rawText) {
       });
     },
     () => ({ error: PHOTO_LOAD_FAILED }),
+  );
+}
+
+/**
+ * Like or unlike a photo on behalf of a user.
+ *
+ * Only users who may see the photo can like it; an unseen, nonexistent, or
+ * malformed photo is reported as "not found" so the photo's existence is not
+ * revealed. Both directions are idempotent at the repository level, so a double
+ * click can neither double count nor error. A like records a LIKE activity for
+ * the feed; an unlike removes that same activity again (best-effort, like every
+ * activity write) so the feed never claims a photo is liked after it is not.
+ *
+ * @param {string} photoId
+ * @param {string} userId The logged in user's `_id`.
+ * @param {boolean} liked True to like, false to unlike.
+ * @returns {Promise<{likeCount: number, likedByViewer: boolean}|{error: string,
+ *   status: number}>} `{likeCount, likedByViewer}` on success.
+ */
+function setLike(photoId, userId, liked) {
+  if (!mongoose.Types.ObjectId.isValid(photoId)) {
+    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
+  }
+
+  return photoRepo.findById(photoId).then(
+    (photo) => {
+      if (!canView(photo, userId)) {
+        return { error: PHOTO_NOT_FOUND, status: 404 };
+      }
+
+      const update = liked
+        ? photoRepo.likePhoto(photoId, userId)
+        : photoRepo.unlikePhoto(photoId, userId);
+
+      return update
+        .then((updated) => {
+          if (liked) {
+            activityService.record(ACTIVITY_TYPES.LIKE, userId, photoId);
+          } else {
+            activityService.removeLike(userId, photoId);
+          }
+          const likes = (updated && updated.likes) || [];
+          return {
+            likeCount: likes.length,
+            likedByViewer: likes.some((id) => String(id) === String(userId)),
+          };
+        })
+        .catch(() => ({ error: LIKE_FAILED, status: 500 }));
+    },
+    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
   );
 }
 
@@ -360,6 +443,7 @@ module.exports = {
   shapePhotos,
   createPhoto,
   addComment,
+  setLike,
   deletePhoto,
   deleteComment,
   getUsage,

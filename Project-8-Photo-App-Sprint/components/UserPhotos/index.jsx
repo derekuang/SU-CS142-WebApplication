@@ -25,6 +25,7 @@ function UserPhotos(props) {
     onAddComment,
     onDeletePhoto,
     onDeleteComment,
+    onToggleLike,
     mentionSuggestions,
   } = useUserPhotos(userId, props.refreshToken);
 
@@ -76,6 +77,7 @@ function UserPhotos(props) {
       onAddComment={onAddComment}
       onDeletePhoto={handleDeletePhoto}
       onDeleteComment={onDeleteComment}
+      onToggleLike={onToggleLike}
       mentionSuggestions={mentionSuggestions}
       onPrev={() => goToIndex(currentIndex - 1)}
       onNext={() => goToIndex(currentIndex + 1)}

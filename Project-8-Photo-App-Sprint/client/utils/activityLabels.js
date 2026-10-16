@@ -10,6 +10,7 @@
 const ACTIVITY_LABELS = {
   PHOTO_UPLOAD: "uploaded a photo",
   ADD_COMMENT: "added a comment",
+  LIKE: "liked a photo",
   USER_REGISTER: "registered",
   USER_LOGIN: "logged in",
   USER_LOGOUT: "logged out",

@@ -41,6 +41,13 @@ const photoSchema = new mongoose.Schema({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     default: undefined,
   },
+  // The ids of the users who liked this photo. A plain array is enough: the
+  // story only needs the count and whether the current viewer is in it. Its
+  // uniqueness is what enforces the story's "a photo's like count should never
+  // be greater than the total number of users" - likes are added with
+  // `$addToSet` and removed with `$pull` (see photoRepo). Photos stored before
+  // this field existed simply lack it and count as having no likes.
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });
 
 /**

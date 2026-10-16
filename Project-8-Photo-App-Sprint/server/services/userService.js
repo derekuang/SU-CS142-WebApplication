@@ -27,10 +27,11 @@ const { removeImage } = require("./photoFiles.js");
  *   3. pull the user's comments from the photos that survive (other people's);
  *   4. drop the user from every `shared_with` visibility list;
  *   5. drop the user from every surviving comment's `mentions`;
- *   6. delete the activities the user performed and those on their photos;
- *   7. delete the User document itself (last, so a partial failure is retryable
+ *   6. drop the user's likes from every surviving photo's `likes`;
+ *   7. delete the activities the user performed and those on their photos;
+ *   8. delete the User document itself (last, so a partial failure is retryable
  *      while the account still exists);
- *   8. remove the image files (best-effort, after the records are gone so a
+ *   9. remove the image files (best-effort, after the records are gone so a
  *      failed unlink can never leave a document pointing at a missing image).
  *
  * @param {string} userId The account to delete.
@@ -47,6 +48,7 @@ function deleteAccount(userId) {
       .then(() => photoRepo.pullCommentsByAuthor(userId))
       .then(() => photoRepo.pullFromSharedWith(userId))
       .then(() => photoRepo.pullMentionsOfUser(userId))
+      .then(() => photoRepo.pullLikeByUser(userId))
       .then(() => activityService.removeForUserAndPhotos(userId, photoIds))
       .then(() => userRepo.deleteById(userId))
       .then(() => {

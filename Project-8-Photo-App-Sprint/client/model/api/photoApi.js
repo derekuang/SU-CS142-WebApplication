@@ -100,3 +100,30 @@ export function deleteComment(photoId, commentId) {
     .delete(`/commentsOfPhoto/${photoId}/${commentId}`)
     .then((response) => response.data);
 }
+
+/**
+ * Like a photo. The server treats a repeated like as a no-op, so a double click
+ * cannot double count.
+ *
+ * @param {string} photoId The photo's _id.
+ * @returns {Promise<{likeCount: number, likedByViewer: boolean}>} The photo's
+ *   new like count and the viewer's like state.
+ */
+export function likePhoto(photoId) {
+  return axios
+    .post(`/likesOfPhoto/${photoId}`)
+    .then((response) => response.data);
+}
+
+/**
+ * Take back the logged in user's like on a photo. Idempotent on the server.
+ *
+ * @param {string} photoId The photo's _id.
+ * @returns {Promise<{likeCount: number, likedByViewer: boolean}>} The photo's
+ *   new like count and the viewer's like state.
+ */
+export function unlikePhoto(photoId) {
+  return axios
+    .delete(`/likesOfPhoto/${photoId}`)
+    .then((response) => response.data);
+}

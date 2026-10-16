@@ -310,6 +310,69 @@ function pullMentionsOfUser(userId) {
   ).exec();
 }
 
+/**
+ * Add a like from a user to a photo.
+ *
+ * `$addToSet` makes this a single atomic statement that both enforces "one like
+ * per user per photo" (so the count can never exceed the number of users) and
+ * makes a repeated like idempotent, so two concurrent requests can never
+ * produce a double count. The updated document is returned so the caller can
+ * report the new count without a second read.
+ *
+ * @param {string} photoId
+ * @param {string} userId The liking user's `_id`.
+ * @returns {Promise<object|null>} The updated Photo (likes only), or null when
+ *   the photo does not exist.
+ */
+function likePhoto(photoId, userId) {
+  return Photo.findByIdAndUpdate(
+    photoId,
+    { $addToSet: { likes: mongoose.Types.ObjectId(userId) } },
+    { new: true },
+  )
+    .select("likes")
+    .exec();
+}
+
+/**
+ * Remove a user's like from a photo.
+ *
+ * Symmetric to `likePhoto`: `$pull` is atomic and idempotent, so unliking a
+ * photo the user never liked is a harmless no-op.
+ *
+ * @param {string} photoId
+ * @param {string} userId The unliking user's `_id`.
+ * @returns {Promise<object|null>} The updated Photo (likes only), or null when
+ *   the photo does not exist.
+ */
+function unlikePhoto(photoId, userId) {
+  return Photo.findByIdAndUpdate(
+    photoId,
+    { $pull: { likes: mongoose.Types.ObjectId(userId) } },
+    { new: true },
+  )
+    .select("likes")
+    .exec();
+}
+
+/**
+ * Remove a user's id from every photo's `likes` array.
+ *
+ * Used by the account-deletion cascade: a deleted account's likes must not
+ * linger, or a photo would keep counting a user that no longer exists. The id
+ * is cast explicitly because `$pull` compares against the stored ids.
+ *
+ * @param {string} userId The deleted user's `_id`.
+ * @returns {Promise<object>} The update result (matched/modified counts).
+ */
+function pullLikeByUser(userId) {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+  }
+  const id = mongoose.Types.ObjectId(userId);
+  return Photo.updateMany({ likes: id }, { $pull: { likes: id } }).exec();
+}
+
 module.exports = {
   findByUser,
   findById,
@@ -325,4 +388,7 @@ module.exports = {
   pullCommentsByAuthor,
   pullFromSharedWith,
   pullMentionsOfUser,
+  likePhoto,
+  unlikePhoto,
+  pullLikeByUser,
 };
