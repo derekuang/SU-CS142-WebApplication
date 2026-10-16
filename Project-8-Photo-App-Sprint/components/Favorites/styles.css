@@ -1,0 +1,3 @@
+/* The Favorites view is styled entirely with MUI `sx` props; this file exists
+   so the component directory follows the same `import "./styles.css"` pattern
+   as the other components. Keep it minimal. */

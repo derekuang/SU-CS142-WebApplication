@@ -48,6 +48,14 @@ const photoSchema = new mongoose.Schema({
   // `$addToSet` and removed with `$pull` (see photoRepo). Photos stored before
   // this field existed simply lack it and count as having no likes.
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  // The ids of the users who favorited this photo. Modeled exactly like
+  // `likes`: a plain array whose uniqueness (enforced by `$addToSet`/`$pull`)
+  // gives "one favorite per user per photo" and makes the toggle idempotent.
+  // Storing it here (rather than on the User) means a deleted photo takes its
+  // favorites with it, and lets `shapePhotos` derive `favoritedByViewer`
+  // without a second query. Photos stored before this field existed simply
+  // lack it and count as having no favorites.
+  favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 });
 
 /**

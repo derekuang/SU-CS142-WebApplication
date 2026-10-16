@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { Grid, Paper } from "@mui/material";
 import { HashRouter, Redirect, Route, Switch } from "react-router-dom";
+import Modal from "react-modal";
 
 import { currentUser, logout } from "./client/model/api/sessionApi.js";
 import { getState, setState, subscribe } from "./client/model/store/session.js";
@@ -13,6 +14,12 @@ import UserList from "./components/UserList";
 import UserPhotos from "./components/UserPhotos";
 import LoginRegister from "./components/LoginRegister";
 import Activities from "./components/Activities";
+import Favorites from "./components/Favorites";
+
+// react-modal renders outside the React tree; telling it the app's root
+// element hides that content from assistive tech while the modal is open
+// (otherwise it warns). Set once at startup.
+Modal.setAppElement("#photoshareapp");
 
 // Store actions shared with the child views. They live at module scope because
 // they only talk to the session store and need no component instance.
@@ -177,6 +184,9 @@ class PhotoShare extends React.Component {
               </Route>
               <Route path="/activities">
                 <Activities />
+              </Route>
+              <Route path="/favorites">
+                <Favorites />
               </Route>
               <Route path="/users" component={UserList} />
               <Redirect to={`/users/${this.state.user._id}`} />

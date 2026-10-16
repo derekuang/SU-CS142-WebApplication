@@ -24,6 +24,7 @@ const COMMENT_ADD_FAILED = "Unable to add comment";
 const PHOTO_ADD_FAILED = "Unable to add photo";
 const INVALID_SHARED_LIST = "Invalid shared list";
 const LIKE_FAILED = "Unable to update like";
+const FAVORITE_FAILED = "Unable to update favorite";
 
 /**
  * Matches a react-mentions mention token in a comment's text. react-mentions'
@@ -85,12 +86,15 @@ function byLikesThenNewest(a, b) {
  * The stored `likes` array is replaced by the two things the view needs - the
  * count and whether the viewer is one of the likers - and the raw list is
  * dropped, so who-liked-what never leaves the server (the same reason the query
- * strips `shared_with`). The result is ordered by likes then recency.
+ * strips `shared_with`). The same is done for `favorites`: the raw list is
+ * dropped and only the viewer's own membership survives, as
+ * `favoritedByViewer` (the favorite button's disabled/indicator state). The
+ * result is ordered by likes then recency.
  *
  * @param {Array<object>} photos Mongoose Photo documents (comments populated).
  * @param {string} viewerId The logged in user's `_id`.
  * @returns {Array<object>} Plain photo objects with `comments[].user`,
- *   `likeCount`, and `likedByViewer`, most liked first.
+ *   `likeCount`, `likedByViewer`, and `favoritedByViewer`, most liked first.
  */
 function shapePhotos(photos, viewerId) {
   return photos
@@ -100,6 +104,11 @@ function shapePhotos(photos, viewerId) {
       delete photoObj.likes;
       photoObj.likeCount = likes.length;
       photoObj.likedByViewer = likes.some(
+        (id) => String(id) === String(viewerId),
+      );
+      const favorites = photoObj.favorites || [];
+      delete photoObj.favorites;
+      photoObj.favoritedByViewer = favorites.some(
         (id) => String(id) === String(viewerId),
       );
       if (photoObj.comments) {
@@ -302,6 +311,78 @@ function setLike(photoId, userId, liked) {
 }
 
 /**
+ * Add or remove a photo from a user's favorites.
+ *
+ * The favorite gate mirrors likes: only users who may see the photo can
+ * favorite it, and an unseen, nonexistent, or malformed photo is reported as
+ * "not found" so its existence is not revealed. Both directions are idempotent
+ * at the repository level, so a double click can neither duplicate nor error.
+ * Unlike a like, favoriting is deliberately silent - it does not touch the
+ * activity feed, which is defined by its own story.
+ *
+ * @param {string} photoId
+ * @param {string} userId The logged in user's `_id`.
+ * @param {boolean} favorited True to favorite, false to unfavorite.
+ * @returns {Promise<{favoritedByViewer: boolean}|{error: string, status:
+ *   number}>} `{favoritedByViewer}` on success.
+ */
+function setFavorite(photoId, userId, favorited) {
+  if (!mongoose.Types.ObjectId.isValid(photoId)) {
+    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
+  }
+
+  return photoRepo.findById(photoId).then(
+    (photo) => {
+      if (!canView(photo, userId)) {
+        return { error: PHOTO_NOT_FOUND, status: 404 };
+      }
+
+      const update = favorited
+        ? photoRepo.favoritePhoto(photoId, userId)
+        : photoRepo.unfavoritePhoto(photoId, userId);
+
+      return update
+        .then((updated) => {
+          const favorites = (updated && updated.favorites) || [];
+          return {
+            favoritedByViewer: favorites.some(
+              (id) => String(id) === String(userId),
+            ),
+          };
+        })
+        .catch(() => ({ error: FAVORITE_FAILED, status: 500 }));
+    },
+    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
+  );
+}
+
+/**
+ * Build the logged in user's favorites list for the favorites page.
+ *
+ * Each entry carries what the list needs: the photo's id, file name, and upload
+ * time (the modal caption), plus the owning user's name (to link back to the
+ * owner's profile). The photo rows are selected and visibility-filtered by the
+ * repository, so a favorited photo the viewer may no longer see is omitted.
+ *
+ * @param {string} userId The logged in user's `_id`.
+ * @returns {Promise<Array<{_id: string, file_name: string, date_time: Date,
+ *   owner: object}>>} The favorited photos, newest first.
+ */
+function getFavorites(userId) {
+  return photoRepo.findFavoritesByUser(userId).then((photos) => {
+    return photos.map((photo) => {
+      const obj = photo.toObject();
+      return {
+        _id: obj._id,
+        file_name: obj.file_name,
+        date_time: obj.date_time,
+        owner: obj.user_id,
+      };
+    });
+  });
+}
+
+/**
  * Delete a photo the acting user owns.
  *
  * Only the owner may delete a photo. The photo's activity records are removed
@@ -444,8 +525,10 @@ module.exports = {
   createPhoto,
   addComment,
   setLike,
+  setFavorite,
   deletePhoto,
   deleteComment,
   getUsage,
   getMentionsOfUser,
+  getFavorites,
 };

@@ -127,3 +127,41 @@ export function unlikePhoto(photoId) {
     .delete(`/likesOfPhoto/${photoId}`)
     .then((response) => response.data);
 }
+
+/**
+ * Add a photo to the logged in user's favorites. The server treats a repeated
+ * favorite as a no-op, so a double click cannot duplicate it.
+ *
+ * @param {string} photoId The photo's _id.
+ * @returns {Promise<{favoritedByViewer: boolean}>} Whether the photo is now one
+ *   of the viewer's favorites.
+ */
+export function favoritePhoto(photoId) {
+  return axios
+    .post(`/photos/${photoId}/favorite`)
+    .then((response) => response.data);
+}
+
+/**
+ * Remove a photo from the logged in user's favorites. Idempotent on the server.
+ *
+ * @param {string} photoId The photo's _id.
+ * @returns {Promise<{favoritedByViewer: boolean}>} Whether the photo is still
+ *   one of the viewer's favorites.
+ */
+export function unfavoritePhoto(photoId) {
+  return axios
+    .delete(`/photos/${photoId}/favorite`)
+    .then((response) => response.data);
+}
+
+/**
+ * Fetch the logged in user's favorites: each entry has `_id`, `file_name`,
+ * `date_time`, and an `owner` ({ _id, first_name, last_name }) object for the
+ * photo's owner, newest first.
+ *
+ * @returns {Promise<Array<object>>}
+ */
+export function getFavorites() {
+  return axios.get("/favorites").then((response) => response.data);
+}

@@ -2,6 +2,8 @@ import React from "react";
 import { MentionsInput, Mention } from "react-mentions";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import {
   Box,
   Button,
@@ -131,6 +133,61 @@ function LikeButton({ photo, onToggleLike }) {
       <Typography variant="body2" color="text.secondary">
         {count}
       </Typography>
+    </Box>
+  );
+}
+
+/**
+ * The favorite button shown on every photo: an outlined star that adds the
+ * photo to the viewer's favorites, and a filled star (disabled) once it is
+ * favorited - the story's "button disabled + clear indicator" rule. Removing a
+ * favorite happens only on the favorites page, so this button is deliberately
+ * one-way. It owns only its in-flight state, so a double click cannot fire two
+ * requests; the optimistic update itself lives in the controller.
+ */
+function FavoriteButton({ photo, onFavorite }) {
+  const [busy, setBusy] = React.useState(false);
+  const favorited = Boolean(photo.favoritedByViewer);
+
+  const handleClick = () => {
+    if (favorited) {
+      return;
+    }
+    setBusy(true);
+    onFavorite(photo._id)
+      // A failed favorite is already rolled back by the controller (the star
+      // visibly snaps back), so there is no separate error to show here.
+      .catch(() => {})
+      .then(() => setBusy(false));
+  };
+
+  const label = favorited ? "Already in your favorites" : "Add to favorites";
+
+  return (
+    <Box
+      component="span"
+      sx={{ display: "inline-flex", alignItems: "center", ml: 1 }}
+    >
+      <Tooltip title={label}>
+        {/* The Tooltip needs a child that can hold a ref and still receive
+            pointer events while the button is disabled. */}
+        <span>
+          <IconButton
+            size="small"
+            color={favorited ? "secondary" : "default"}
+            aria-label={label}
+            aria-pressed={favorited}
+            disabled={favorited || busy}
+            onClick={handleClick}
+          >
+            {favorited ? (
+              <StarIcon fontSize="small" />
+            ) : (
+              <StarBorderIcon fontSize="small" />
+            )}
+          </IconButton>
+        </span>
+      </Tooltip>
     </Box>
   );
 }
@@ -319,6 +376,7 @@ function PhotoGridView({
   onRequestDeletePhoto,
   onRequestDeleteComment,
   onToggleLike,
+  onFavorite,
   mentionSuggestions,
 }) {
   return (
@@ -340,6 +398,7 @@ function PhotoGridView({
                   variant="outlined"
                 />
                 <LikeButton photo={photo} onToggleLike={onToggleLike} />
+                <FavoriteButton photo={photo} onFavorite={onFavorite} />
                 {photo.user_id === viewerId ? (
                   <Button
                     size="small"
@@ -389,6 +448,7 @@ function PhotoStepperView({
   onRequestDeletePhoto,
   onRequestDeleteComment,
   onToggleLike,
+  onFavorite,
   mentionSuggestions,
   onPrev,
   onNext,
@@ -426,6 +486,7 @@ function PhotoStepperView({
             variant="outlined"
           />
           <LikeButton photo={photo} onToggleLike={onToggleLike} />
+          <FavoriteButton photo={photo} onFavorite={onFavorite} />
           {photo.user_id === viewerId ? (
             <Button
               size="small"
@@ -474,6 +535,7 @@ function UserPhotosView({
   onDeletePhoto,
   onDeleteComment,
   onToggleLike,
+  onFavorite,
   mentionSuggestions,
   onPrev,
   onNext,
@@ -559,6 +621,7 @@ function UserPhotosView({
           onRequestDeletePhoto={requestDeletePhoto}
           onRequestDeleteComment={requestDeleteComment}
           onToggleLike={onToggleLike}
+          onFavorite={onFavorite}
           mentionSuggestions={mentionSuggestions}
           onPrev={onPrev}
           onNext={onNext}
@@ -577,6 +640,7 @@ function UserPhotosView({
         onRequestDeletePhoto={requestDeletePhoto}
         onRequestDeleteComment={requestDeleteComment}
         onToggleLike={onToggleLike}
+        onFavorite={onFavorite}
         mentionSuggestions={mentionSuggestions}
       />
       {dialog}

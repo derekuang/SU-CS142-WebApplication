@@ -373,6 +373,104 @@ function pullLikeByUser(userId) {
   return Photo.updateMany({ likes: id }, { $pull: { likes: id } }).exec();
 }
 
+/**
+ * Add a photo to a user's favorites.
+ *
+ * `$addToSet` is the same single atomic statement used for likes: it enforces
+ * "one favorite per user per photo" and makes a repeated favorite idempotent,
+ * so two concurrent requests can never create a duplicate entry. The updated
+ * document is returned so the caller can report the viewer's new state.
+ *
+ * @param {string} photoId
+ * @param {string} userId The favoriting user's `_id`.
+ * @returns {Promise<object|null>} The updated Photo (favorites only), or null
+ *   when the photo does not exist.
+ */
+function favoritePhoto(photoId, userId) {
+  return Photo.findByIdAndUpdate(
+    photoId,
+    { $addToSet: { favorites: mongoose.Types.ObjectId(userId) } },
+    { new: true },
+  )
+    .select("favorites")
+    .exec();
+}
+
+/**
+ * Remove a photo from a user's favorites.
+ *
+ * Symmetric to `favoritePhoto`: `$pull` is atomic and idempotent, so removing a
+ * favorite the user never added is a harmless no-op.
+ *
+ * @param {string} photoId
+ * @param {string} userId The unfavoriting user's `_id`.
+ * @returns {Promise<object|null>} The updated Photo (favorites only), or null
+ *   when the photo does not exist.
+ */
+function unfavoritePhoto(photoId, userId) {
+  return Photo.findByIdAndUpdate(
+    photoId,
+    { $pull: { favorites: mongoose.Types.ObjectId(userId) } },
+    { new: true },
+  )
+    .select("favorites")
+    .exec();
+}
+
+/**
+ * Find every photo a user has favorited, limited to what that user may see.
+ *
+ * This is the query behind the favorites page. The visibility clause is written
+ * out in full (owner, public, or shared with the viewer) rather than reusing
+ * `visibilityFilter`, because the photos here may belong to different owners -
+ * a favorited photo the owner has since restricted away must not appear. Only
+ * the fields the list needs are selected (id, file name, upload time, owner),
+ * with the owner populated with their name; the favorites/likes arrays and
+ * comments are never sent to the client.
+ *
+ * @param {string} userId The viewer's `_id` (their favorites are returned).
+ * @returns {Promise<Array<object>>} The viewer's visible favorited photos,
+ *   newest first, with `user_id` populated with the owner's name.
+ */
+function findFavoritesByUser(userId) {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return Promise.resolve([]);
+  }
+  return Photo.find({
+    favorites: userId,
+    $or: [
+      { user_id: userId },
+      { shared_with: { $exists: false } },
+      { shared_with: userId },
+    ],
+  })
+    .select("file_name date_time user_id")
+    .populate({ path: "user_id", select: "first_name last_name" })
+    .sort({ date_time: -1 })
+    .exec();
+}
+
+/**
+ * Remove a user's id from every photo's `favorites` array.
+ *
+ * Used by the account-deletion cascade: a deleted account's favorites must not
+ * linger, or a photo would keep referring to a user that no longer exists. The
+ * id is cast explicitly because `$pull` compares against the stored ids.
+ *
+ * @param {string} userId The deleted user's `_id`.
+ * @returns {Promise<object>} The update result (matched/modified counts).
+ */
+function pullFavoritesByUser(userId) {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return Promise.resolve({ matchedCount: 0, modifiedCount: 0 });
+  }
+  const id = mongoose.Types.ObjectId(userId);
+  return Photo.updateMany(
+    { favorites: id },
+    { $pull: { favorites: id } },
+  ).exec();
+}
+
 module.exports = {
   findByUser,
   findById,
@@ -391,4 +489,8 @@ module.exports = {
   likePhoto,
   unlikePhoto,
   pullLikeByUser,
+  favoritePhoto,
+  unfavoritePhoto,
+  findFavoritesByUser,
+  pullFavoritesByUser,
 };

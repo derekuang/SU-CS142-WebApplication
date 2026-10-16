@@ -59,6 +59,19 @@ router.delete(
   photoController.unlikePhoto,
 );
 
+// Favorites.
+router.get("/favorites", requireLogin, photoController.getFavorites);
+router.post(
+  "/photos/:photo_id/favorite",
+  requireLogin,
+  photoController.favoritePhoto,
+);
+router.delete(
+  "/photos/:photo_id/favorite",
+  requireLogin,
+  photoController.unfavoritePhoto,
+);
+
 // Comments.
 router.post(
   "/commentsOfPhoto/:photo_id",

@@ -7,6 +7,7 @@ import {
   deleteComment,
   likePhoto,
   unlikePhoto,
+  favoritePhoto,
 } from "../model/api/photoApi.js";
 import { listUsers } from "../model/api/userApi.js";
 import getErrorMessage from "../model/api/errors.js";
@@ -53,8 +54,8 @@ function replacePhoto(photos, photoId, update) {
  * Fetches the photos for `userId`, refetching when the id changes or when
  * `refreshToken` changes (so an upload elsewhere refreshes the view). Also
  * exposes the mutating actions - `onAddComment`, `onDeletePhoto`,
- * `onDeleteComment`, `onToggleLike` - each of which submits, reloads on success,
- * and rejects with a displayable message on failure.
+ * `onDeleteComment`, `onToggleLike`, `onFavorite` - each of which submits,
+ * reloads on success, and rejects with a displayable message on failure.
  *
  * Loads the user list once to provide the @mention autocomplete suggestions.
  */
@@ -152,12 +153,42 @@ function useUserPhotos(userId, refreshToken) {
       });
   }, []);
 
+  const onFavorite = useCallback((photoId) => {
+    // One-way, like the story's disabled button: flip the star on immediately
+    // so the click feels instant, then reconcile with the server. No reload -
+    // the photos view does not display favorites order.
+    setPhotos((current) => {
+      return replacePhoto(current, photoId, () => ({
+        favoritedByViewer: true,
+      }));
+    });
+
+    return favoritePhoto(photoId)
+      .then(({ favoritedByViewer }) => {
+        setPhotos((current) => {
+          return replacePhoto(current, photoId, () => ({ favoritedByViewer }));
+        });
+      })
+      .catch((err) => {
+        // Put the star back the way it was so the button shows reality again.
+        setPhotos((current) => {
+          return replacePhoto(current, photoId, () => ({
+            favoritedByViewer: false,
+          }));
+        });
+        return Promise.reject(
+          getErrorMessage(err, "Unable to add favorite. Please try again."),
+        );
+      });
+  }, []);
+
   return {
     photos,
     onAddComment,
     onDeletePhoto,
     onDeleteComment,
     onToggleLike,
+    onFavorite,
     mentionSuggestions,
   };
 }

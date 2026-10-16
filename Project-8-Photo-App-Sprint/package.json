@@ -37,6 +37,7 @@
     "react": "^17.0.0",
     "react-dom": "^17.0.0",
     "react-mentions": "^4.4.10",
+    "react-modal": "^3.16.3",
     "react-router": "^5.1.12",
     "react-router-dom": "^5.1.12",
     "url-loader": "^4.1.1"

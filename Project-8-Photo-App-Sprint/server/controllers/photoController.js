@@ -178,6 +178,66 @@ function unlikePhoto(request, response) {
     });
 }
 
+/**
+ * Translate a `photoService.setFavorite` result into an HTTP response.
+ *
+ * @param {object} response
+ * @param {{favoritedByViewer: boolean}|{error: string, status: number}} result
+ */
+function sendFavoriteResult(response, result) {
+  if (result.error) {
+    response.status(result.status || 400).send(result.error);
+    return;
+  }
+  response.status(200).send(result);
+}
+
+/**
+ * POST /photos/:photo_id/favorite - Add a photo to the logged in user's
+ * favorites. Idempotent, and reports the viewer's new favorite state. A
+ * missing/unseen/malformed photo is reported as 404.
+ */
+function favoritePhoto(request, response) {
+  photoService
+    .setFavorite(request.params.photo_id, request.session.user_id, true)
+    .then((result) => sendFavoriteResult(response, result))
+    .catch((err) => {
+      console.log("Error favoriting photo:", err);
+      response.status(500).send("Unable to update favorite");
+    });
+}
+
+/**
+ * DELETE /photos/:photo_id/favorite - Remove a photo from the logged in user's
+ * favorites. Idempotent (removing a favorite that was never added is fine). A
+ * missing/unseen/malformed photo is reported as 404.
+ */
+function unfavoritePhoto(request, response) {
+  photoService
+    .setFavorite(request.params.photo_id, request.session.user_id, false)
+    .then((result) => sendFavoriteResult(response, result))
+    .catch((err) => {
+      console.log("Error unfavoriting photo:", err);
+      response.status(500).send("Unable to update favorite");
+    });
+}
+
+/**
+ * GET /favorites - Return the logged in user's favorites list (thumbnail file
+ * name, upload time, and owner), newest first.
+ */
+function getFavorites(request, response) {
+  photoService
+    .getFavorites(request.session.user_id)
+    .then((favorites) => {
+      response.status(200).send(favorites);
+    })
+    .catch((err) => {
+      console.log("Error finding favorites:", err);
+      response.status(400).send(err);
+    });
+}
+
 module.exports = {
   photosOfUser,
   addPhoto,
@@ -186,4 +246,7 @@ module.exports = {
   deletePhoto,
   likePhoto,
   unlikePhoto,
+  favoritePhoto,
+  unfavoritePhoto,
+  getFavorites,
 };

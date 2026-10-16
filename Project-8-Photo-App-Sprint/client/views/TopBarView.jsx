@@ -126,6 +126,13 @@ function TopBarView({
                   >
                     Activities
                   </MenuItem>
+                  <MenuItem
+                    component="a"
+                    href="#/favorites"
+                    onClick={closeMenu}
+                  >
+                    Favorites
+                  </MenuItem>
                   {showAddPhoto ? (
                     <MenuItem onClick={handleAddPhotoClick}>Add Photo</MenuItem>
                   ) : null}
