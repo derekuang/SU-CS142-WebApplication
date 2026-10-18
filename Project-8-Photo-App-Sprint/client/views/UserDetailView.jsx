@@ -168,6 +168,13 @@ function UserDetailView({ user, usage, mentions, onOpenStepper }) {
       divider={<Divider sx={{ width: "90%" }} />}
       alignItems="center"
       spacing={2}
+      sx={{
+        width: "100%",
+        maxHeight: "100%",
+        overflowY: "auto",
+        boxSizing: "border-box",
+        pr: 1,
+      }}
     >
       <Typography variant="h3">
         {`${user.first_name} ${user.last_name}`}
