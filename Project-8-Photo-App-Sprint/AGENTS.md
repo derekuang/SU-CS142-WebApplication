@@ -36,13 +36,19 @@ node webServer.js      # Express on :3000
 ## Tests
 
 `test/` is a **separate package** (`test/package.json`, its own `node_modules`,
-NOT installed by this directory's `npm install`). `npm test` installs those
-dependencies in its `pretest` hook and then reseeds the database. The API tests
-need a **running server** on `127.0.0.1:3000`.
+NOT installed by this directory's `npm install`). Tests run **inside the `app`
+container** (Node 22): the API suites need the server at `127.0.0.1:3000`, and
+the host Node may be too new for mocha 9's yargs 16. Start the stack, then open a
+shell in the container (`--user node` keeps files created on the bind mount
+owned by your host user):
 
 ```sh
+docker compose up -d
+docker compose exec --user node app sh
+
+# inside the container:
 cd test && npm test                                   # installs deps, reseeds DB, all eleven suites
-cd test && node_modules/.bin/mocha serverApiTest.js   # one file (after a first npm install/test)
+cd test && node_modules/.bin/mocha serverApiTest.js   # one file (after a first npm test)
 cd test && node_modules/.bin/mocha usageApiTest.js    # usage summary endpoint
 cd test && node_modules/.bin/mocha mentionsApiTest.js # @mentions endpoints
 cd test && node_modules/.bin/mocha visibilityApiTest.js # photo visibility controls
@@ -51,8 +57,13 @@ cd test && node_modules/.bin/mocha sidebarActivityApiTest.js # per-user sidebar 
 cd test && node_modules/.bin/mocha deletionApiTest.js # deleting comments, photos, users
 cd test && node_modules/.bin/mocha likesApiTest.js    # photo like votes
 cd test && node_modules/.bin/mocha favoritesApiTest.js # favorites list
-cd test && node_modules/.bin/mocha serverApiTest.js --grep "user/list"
 ```
+
+Non-interactive equivalent:
+`docker compose exec -T --user node app sh -c 'cd test && npm test'`.
+
+Run whole files, not `--grep` subsets: suites such as `serverApiTest.js` depend
+on login state set up by earlier tests in the same file.
 
 `passwordApiTest.js` is a pure unit test (only `cs142password.js`) and needs no
 server. Seeded logins use `login_name = last_name.toLowerCase()` with password
