@@ -41,12 +41,13 @@ dependencies in its `pretest` hook and then reseeds the database. The API tests
 need a **running server** on `127.0.0.1:3000`.
 
 ```sh
-cd test && npm test                                   # installs deps, reseeds DB, all seven suites
+cd test && npm test                                   # installs deps, reseeds DB, all eight suites
 cd test && node_modules/.bin/mocha serverApiTest.js   # one file (after a first npm install/test)
 cd test && node_modules/.bin/mocha usageApiTest.js    # usage summary endpoint
 cd test && node_modules/.bin/mocha mentionsApiTest.js # @mentions endpoints
 cd test && node_modules/.bin/mocha visibilityApiTest.js # photo visibility controls
 cd test && node_modules/.bin/mocha activityApiTest.js # activity feed
+cd test && node_modules/.bin/mocha deletionApiTest.js # deleting comments, photos, users
 cd test && node_modules/.bin/mocha serverApiTest.js --grep "user/list"
 ```
 
