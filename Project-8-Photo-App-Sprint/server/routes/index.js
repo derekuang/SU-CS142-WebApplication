@@ -85,6 +85,11 @@ router.delete(
 );
 
 // Activities.
+router.get(
+  "/activities/byUser",
+  requireLogin,
+  activityController.listByUser,
+);
 router.get("/activities", requireLogin, activityController.list);
 
 module.exports = router;

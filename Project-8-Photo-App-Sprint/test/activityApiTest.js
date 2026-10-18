@@ -23,16 +23,10 @@ const {
   deletePhoto,
   assertAllowedProperties,
 } = require("./apiTestHelpers.js");
-
-const ACTIVITY_TYPES = [
-  "PHOTO_UPLOAD",
-  "ADD_COMMENT",
-  "LIKE",
-  "USER_REGISTER",
-  "USER_LOGIN",
-  "USER_LOGOUT",
-];
-const PHOTO_ACTIVITY_TYPES = ["PHOTO_UPLOAD", "ADD_COMMENT", "LIKE"];
+const {
+  ACTIVITY_TYPES,
+  PHOTO_ACTIVITY_TYPES,
+} = require("./activityTestConstants.js");
 
 const activityProperties = ["_id", "type", "date_time", "user", "photo"];
 const activityUserProperties = ["_id", "first_name", "last_name"];

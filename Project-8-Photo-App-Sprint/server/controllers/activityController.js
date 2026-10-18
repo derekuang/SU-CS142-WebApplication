@@ -24,6 +24,24 @@ function list(request, response) {
     });
 }
 
+/**
+ * GET /activities/byUser - Return every user with their most recent activity
+ * visible to the logged in user, newest activity first. Users without a visible
+ * activity carry `activity: null`. A query error is reported as a 400.
+ */
+function listByUser(request, response) {
+  activityService
+    .getLatestActivityByUser(request.session.user_id)
+    .then((entries) => {
+      response.status(200).send(entries);
+    })
+    .catch((err) => {
+      console.log("Error finding activities by user:", err);
+      response.status(400).send("Unable to load activities");
+    });
+}
+
 module.exports = {
   list,
+  listByUser,
 };

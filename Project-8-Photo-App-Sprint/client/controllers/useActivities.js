@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import getActivities from "../model/api/activityApi.js";
 import getErrorMessage from "../model/api/errors.js";
-
-// How often the feed re-fetches while it is mounted, so it stays current
-// without the user doing anything.
-const POLL_INTERVAL_MS = 10000;
+import POLL_INTERVAL_MS from "../utils/polling.js";
 
 /**
  * Controller for the activity feed view.

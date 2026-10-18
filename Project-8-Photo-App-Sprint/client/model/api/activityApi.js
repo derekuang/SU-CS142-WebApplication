@@ -22,3 +22,14 @@ export default function getActivities(limit) {
     .get("/activities", { params: limit ? { limit } : undefined })
     .then((response) => response.data);
 }
+
+/**
+ * Fetch every user with their most recent activity visible to the caller,
+ * newest activity first.
+ *
+ * @returns {Promise<Array<object>>} Each item has `user` ({ _id, first_name,
+ *   last_name }) and `activity` ({ _id, type, date_time, photo } | null).
+ */
+export function getActivitiesByUser() {
+  return axios.get("/activities/byUser").then((response) => response.data);
+}

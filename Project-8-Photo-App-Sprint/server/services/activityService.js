@@ -7,6 +7,7 @@
  */
 
 const activityRepo = require("../models/activityRepo.js");
+const userRepo = require("../models/userRepo.js");
 const ACTIVITY_TYPES = require("../models/activityTypes.js");
 
 // The story asks for the 5 most recent activities.
@@ -103,6 +104,23 @@ function resolveLimit(rawLimit) {
 }
 
 /**
+ * Shape a joined photo for the API.
+ *
+ * @param {object|null|undefined} photo A photo document/row, or a missing one.
+ * @returns {object|null} `{ _id, file_name, user_id }` or null.
+ */
+function shapePhoto(photo) {
+  if (!photo) {
+    return null;
+  }
+  return {
+    _id: photo._id,
+    file_name: photo.file_name,
+    user_id: photo.user_id,
+  };
+}
+
+/**
  * Turn an aggregation row into the activity shape the API returns.
  *
  * @param {object} activity A row from activityRepo.findRecentVisible.
@@ -124,14 +142,68 @@ function shapeActivity(activity) {
           last_name: actor.last_name,
         }
       : null,
-    photo: photo
-      ? {
-          _id: photo._id,
-          file_name: photo.file_name,
-          user_id: photo.user_id,
-        }
-      : null,
+    photo: shapePhoto(photo),
   };
+}
+
+/**
+ * Shape one user's latest activity for the sidebar summary. The actor is the
+ * enclosing `user`, so it is not repeated here.
+ *
+ * @param {object} activity An `activity` row from
+ *   activityRepo.findLatestVisiblePerUser.
+ * @returns {object} `{ _id, type, date_time, photo }`.
+ */
+function shapeLatestActivity(activity) {
+  return {
+    _id: activity._id,
+    type: activity.type,
+    date_time: activity.date_time,
+    photo: shapePhoto(activity.photo),
+  };
+}
+
+/**
+ * Order two user names alphabetically by last name, then first name.
+ *
+ * @param {object} a A `{ user }` entry.
+ * @param {object} b A `{ user }` entry.
+ * @returns {number} Negative when a sorts before b.
+ */
+function compareUserNames(a, b) {
+  const lastNameOrder = a.user.last_name.localeCompare(b.user.last_name);
+  if (lastNameOrder !== 0) {
+    return lastNameOrder;
+  }
+  return a.user.first_name.localeCompare(b.user.first_name);
+}
+
+/**
+ * Order sidebar entries: newest activity first, no-activity users last
+ * (alphabetically). Identical timestamps fall back to the activity id so the
+ * order is stable.
+ *
+ * @param {object} a A `{ user, activity }` entry.
+ * @param {object} b A `{ user, activity }` entry.
+ * @returns {number} Negative when a sorts before b.
+ */
+function compareEntries(a, b) {
+  if (a.activity && b.activity) {
+    const timeOrder =
+      new Date(b.activity.date_time).getTime() -
+      new Date(a.activity.date_time).getTime();
+    if (timeOrder !== 0) {
+      return timeOrder;
+    }
+    return String(b.activity._id).localeCompare(String(a.activity._id));
+  }
+  if (a.activity) {
+    return -1;
+  }
+  if (b.activity) {
+    return 1;
+  }
+  return compareUserNames(a, b);
 }
 
 /**
@@ -149,6 +221,47 @@ function getRecentActivities(viewerId, rawLimit) {
     .then((activities) => activities.map(shapeActivity));
 }
 
+/**
+ * Build the sidebar summary: every user with their most recent activity that
+ * the viewer is allowed to see.
+ *
+ * The user list and the per-user activity rows are fetched independently and
+ * merged here, so users who never did anything (or whose only activities are on
+ * hidden photos) still appear with `activity: null`.
+ *
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Promise<Array<object>>} `{ user, activity }` entries, newest
+ *   activity first, users with no visible activity last.
+ */
+function getLatestActivityByUser(viewerId) {
+  return Promise.all([
+    userRepo.list(),
+    activityRepo.findLatestVisiblePerUser(viewerId),
+  ]).then((results) => {
+    const users = results[0];
+    const latestActivities = results[1];
+    const activityByUser = new Map();
+
+    latestActivities.forEach((row) => {
+      activityByUser.set(
+        String(row.user_id),
+        shapeLatestActivity(row.activity),
+      );
+    });
+
+    const entries = users.map((user) => ({
+      user: {
+        _id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      },
+      activity: activityByUser.get(String(user._id)) || null,
+    }));
+
+    return entries.sort(compareEntries);
+  });
+}
+
 module.exports = {
   ACTIVITY_TYPES,
   DEFAULT_LIMIT,
@@ -158,4 +271,5 @@ module.exports = {
   removeByPhotoId,
   removeForUserAndPhotos,
   getRecentActivities,
+  getLatestActivityByUser,
 };

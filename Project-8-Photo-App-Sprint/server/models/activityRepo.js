@@ -73,6 +73,57 @@ function deleteByUserAndPhotos(userId, photoIds) {
 }
 
 /**
+ * Build the `$lookup` stage that joins an activity's photo, keeping the photo
+ * only when it is visible to the viewer.
+ *
+ * An activity is visible when it has no photo, or when its photo belongs to the
+ * viewer, is public (no `shared_with`), or lists the viewer in `shared_with`.
+ * The rule is shared by every activity query so the privacy behaviour can never
+ * drift between the feed and the sidebar summary.
+ *
+ * @param {mongoose.Types.ObjectId} viewer The logged in user's `_id`.
+ * @returns {object} A `$lookup` stage aliasing the result to `photo`.
+ */
+function visiblePhotoLookup(viewer) {
+  return {
+    from: "photos",
+    let: { activityPhotoId: "$photo_id" },
+    pipeline: [
+      { $match: { $expr: { $eq: ["$_id", "$$activityPhotoId"] } } },
+      {
+        $match: {
+          $or: [
+            { user_id: viewer },
+            { shared_with: { $exists: false } },
+            { shared_with: viewer },
+          ],
+        },
+      },
+      { $project: { _id: 1, file_name: 1, user_id: 1 } },
+    ],
+    as: "photo",
+  };
+}
+
+/**
+ * The `$match` that follows `visiblePhotoLookup`.
+ *
+ * It keeps activities with no photo at all (register/login/logout) and drops
+ * activities whose photo exists but is not visible to the viewer.
+ *
+ * @returns {object} A `$match` stage.
+ */
+function visibleActivityMatch() {
+  return {
+    $or: [
+      { photo_id: { $exists: false } },
+      { photo_id: null },
+      { "photo.0": { $exists: true } },
+    ],
+  };
+}
+
+/**
  * Find the most recent activities a viewer is allowed to see.
  *
  * The result is computed with an aggregation rather than "fetch N then filter",
@@ -103,31 +154,8 @@ function findRecentVisible(viewerId, limit) {
   const viewer = mongoose.Types.ObjectId(viewerId);
 
   return Activity.aggregate()
-    .lookup({
-      from: "photos",
-      let: { activityPhotoId: "$photo_id" },
-      pipeline: [
-        { $match: { $expr: { $eq: ["$_id", "$$activityPhotoId"] } } },
-        {
-          $match: {
-            $or: [
-              { user_id: viewer },
-              { shared_with: { $exists: false } },
-              { shared_with: viewer },
-            ],
-          },
-        },
-        { $project: { _id: 1, file_name: 1, user_id: 1 } },
-      ],
-      as: "photo",
-    })
-    .match({
-      $or: [
-        { photo_id: { $exists: false } },
-        { photo_id: null },
-        { "photo.0": { $exists: true } },
-      ],
-    })
+    .lookup(visiblePhotoLookup(viewer))
+    .match(visibleActivityMatch())
     .sort({ date_time: -1, _id: -1 })
     .limit(limit)
     .lookup({
@@ -140,6 +168,53 @@ function findRecentVisible(viewerId, limit) {
       as: "user",
     })
     .project({ type: 1, date_time: 1, user: 1, photo: 1 })
+    .exec();
+}
+
+/**
+ * Find the most recent activity each user performed that the viewer may see.
+ *
+ * One row per user, newest visible activity first inside the group. The photo
+ * visibility filter is the same one `findRecentVisible` uses, applied before the
+ * `$group`: a user whose newest activity is on a photo the viewer cannot see
+ * falls back to their next visible activity instead of leaking the hidden one.
+ *
+ * The actor is not joined here because the caller already has the user list; it
+ * only needs to know which activity belongs to which `user_id`.
+ *
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Promise<Array<object>>} `{ user_id, activity: { _id, type,
+ *   date_time, photo } }` rows, where `photo` is the joined photo or null.
+ */
+function findLatestVisiblePerUser(viewerId) {
+  // A malformed viewer id could never match anything visible; treat it as "no
+  // activities" rather than letting the cast throw.
+  if (!mongoose.Types.ObjectId.isValid(viewerId)) {
+    return Promise.resolve([]);
+  }
+
+  const viewer = mongoose.Types.ObjectId(viewerId);
+
+  return Activity.aggregate()
+    .lookup(visiblePhotoLookup(viewer))
+    .match(visibleActivityMatch())
+    .sort({ date_time: -1, _id: -1 })
+    .group({
+      _id: "$user_id",
+      activity: { $first: "$$ROOT" },
+    })
+    .project({
+      _id: 0,
+      user_id: "$_id",
+      activity: {
+        _id: "$activity._id",
+        type: "$activity.type",
+        date_time: "$activity.date_time",
+        photo: {
+          $ifNull: [{ $arrayElemAt: ["$activity.photo", 0] }, null],
+        },
+      },
+    })
     .exec();
 }
 
@@ -170,4 +245,5 @@ module.exports = {
   deleteByUserAndPhotos,
   deleteLike,
   findRecentVisible,
+  findLatestVisiblePerUser,
 };

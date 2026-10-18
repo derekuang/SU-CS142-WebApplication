@@ -166,7 +166,7 @@ class PhotoShare extends React.Component {
       <React.Fragment>
         <Grid item xs={12} sm={3}>
           <Paper className="cs142-main-grid-item">
-            <UserList />
+            <UserList currentUser={this.state.user} />
           </Paper>
         </Grid>
         <Grid item xs={12} sm={9}>
@@ -188,7 +188,10 @@ class PhotoShare extends React.Component {
               <Route path="/favorites">
                 <Favorites />
               </Route>
-              <Route path="/users" component={UserList} />
+              <Route
+                path="/users"
+                render={() => <UserList currentUser={this.state.user} />}
+              />
               <Redirect to={`/users/${this.state.user._id}`} />
             </Switch>
           </Paper>

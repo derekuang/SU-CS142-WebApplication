@@ -1,6 +1,6 @@
 import React from "react";
 
-import useUserList from "../../client/controllers/useUserList.js";
+import useUserActivity from "../../client/controllers/useUserActivity.js";
 import UserListView from "../../client/views/UserListView.jsx";
 
 import "./styles.css";
@@ -8,13 +8,20 @@ import "./styles.css";
 /**
  * Define UserList, a React component of CS142 Project 8.
  *
- * Thin controller: fetches the users via the hook and hands them to the
- * presentational view.
+ * Thin controller: the hook fetches and polls every user's latest visible
+ * activity, and the view renders the current user separately from the rest.
+ * `currentUser` comes from the app shell so the view can mark "You".
  */
-function UserList() {
-  const { users } = useUserList();
+function UserList({ currentUser }) {
+  const { entries, error } = useUserActivity();
 
-  return <UserListView users={users} />;
+  return (
+    <UserListView
+      entries={entries}
+      currentUser={currentUser}
+      error={error}
+    />
+  );
 }
 
 export default UserList;
