@@ -15,7 +15,7 @@
   },
   "scripts": {
     "pretest": "npm install --no-audit --no-fund && docker compose -f ../docker-compose.yml exec -T app node loadDatabase.js",
-    "test": "TZ=UTC mocha serverApiTest.js usageApiTest.js mentionsApiTest.js visibilityApiTest.js sessionInputApiTest.js passwordApiTest.js"
+    "test": "TZ=UTC mocha serverApiTest.js usageApiTest.js mentionsApiTest.js visibilityApiTest.js activityApiTest.js sessionInputApiTest.js passwordApiTest.js"
   },
   "author": "Mendel Rosenblum <mendel@cs.stanford.edu> (http://www.stanford.edu/~mendel)",
   "license": "ISC"
