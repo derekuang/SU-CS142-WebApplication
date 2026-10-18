@@ -14,8 +14,8 @@
     "mocha": "^9.2.0"
   },
   "scripts": {
-    "pretest": "docker compose -f ../docker-compose.yml exec -T app node loadDatabase.js",
-    "test": "TZ=UTC mocha serverApiTest.js usageApiTest.js sessionInputApiTest.js passwordApiTest.js"
+    "pretest": "npm install --no-audit --no-fund && docker compose -f ../docker-compose.yml exec -T app node loadDatabase.js",
+    "test": "TZ=UTC mocha serverApiTest.js usageApiTest.js mentionsApiTest.js sessionInputApiTest.js passwordApiTest.js"
   },
   "author": "Mendel Rosenblum <mendel@cs.stanford.edu> (http://www.stanford.edu/~mendel)",
   "license": "ISC"

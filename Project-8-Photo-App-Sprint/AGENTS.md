@@ -36,15 +36,15 @@ node webServer.js      # Express on :3000
 ## Tests
 
 `test/` is a **separate package** (`test/package.json`, its own `node_modules`,
-NOT installed by this directory's `npm install`). The API tests need a
-**running, seeded server** on `127.0.0.1:3000` (start the server and run
-`loadDatabase.js` first).
+NOT installed by this directory's `npm install`). `npm test` installs those
+dependencies in its `pretest` hook and then reseeds the database. The API tests
+need a **running server** on `127.0.0.1:3000`.
 
 ```sh
-cd test && npm install
-cd test && npm test                                   # all four suites
-cd test && node_modules/.bin/mocha serverApiTest.js   # one file
+cd test && npm test                                   # installs deps, reseeds DB, all five suites
+cd test && node_modules/.bin/mocha serverApiTest.js   # one file (after a first npm install/test)
 cd test && node_modules/.bin/mocha usageApiTest.js    # usage summary endpoint
+cd test && node_modules/.bin/mocha mentionsApiTest.js # @mentions endpoints
 cd test && node_modules/.bin/mocha serverApiTest.js --grep "user/list"
 ```
 
