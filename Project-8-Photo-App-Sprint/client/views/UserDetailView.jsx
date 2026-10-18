@@ -189,31 +189,42 @@ function UserDetailView({ user, usage, mentions, onOpenStepper }) {
         <Link href={`#/photos/${user._id}`}>Photos</Link>
       </Button>
 
-      <UsageSection
-        title="Recent Upload"
-        loading={!usage}
-        photo={usage && usage.recentPhoto}
-        caption={
-          usage && usage.recentPhoto
-            ? `Uploaded ${humanize(usage.recentPhoto.date_time)}`
-            : null
-        }
-        userId={user._id}
-        onOpenStepper={onOpenStepper}
-      />
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          justifyContent: "center",
+          gap: 4,
+          width: "100%",
+        }}
+      >
+        <UsageSection
+          title="Recent Upload"
+          loading={!usage}
+          photo={usage && usage.recentPhoto}
+          caption={
+            usage && usage.recentPhoto
+              ? `Uploaded ${humanize(usage.recentPhoto.date_time)}`
+              : null
+          }
+          userId={user._id}
+          onOpenStepper={onOpenStepper}
+        />
 
-      <UsageSection
-        title="Most Commented"
-        loading={!usage}
-        photo={usage && usage.mostCommentedPhoto}
-        caption={
-          usage && usage.mostCommentedPhoto
-            ? `${usage.mostCommentedPhoto.commentCount} comments`
-            : null
-        }
-        userId={user._id}
-        onOpenStepper={onOpenStepper}
-      />
+        <UsageSection
+          title="Most Commented"
+          loading={!usage}
+          photo={usage && usage.mostCommentedPhoto}
+          caption={
+            usage && usage.mostCommentedPhoto
+              ? `${usage.mostCommentedPhoto.commentCount} comments`
+              : null
+          }
+          userId={user._id}
+          onOpenStepper={onOpenStepper}
+        />
+      </Box>
 
       <MentionsSection mentions={mentions} onOpenStepper={onOpenStepper} />
     </Stack>
