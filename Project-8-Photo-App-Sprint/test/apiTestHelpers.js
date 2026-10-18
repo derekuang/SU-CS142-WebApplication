@@ -84,6 +84,23 @@ function getResponse(path, cookie) {
   return axios.get(makeFullUrl(path), { headers: authHeaders(cookie) });
 }
 
+/**
+ * Issue a POST without asserting the status, for tests that expect an error.
+ */
+function postResponse(path, body, cookie) {
+  return axios.post(makeFullUrl(path), body, {
+    headers: authHeaders(cookie),
+  });
+}
+
+/**
+ * Issue a DELETE without asserting the status, for expected-error tests and for
+ * undoing likes/favorites during cleanup.
+ */
+function deleteResponse(path, cookie) {
+  return axios.delete(makeFullUrl(path), { headers: authHeaders(cookie) });
+}
+
 async function postJson(path, body, cookie) {
   const response = await axios.post(makeFullUrl(path), body, {
     headers: authHeaders(cookie),
@@ -94,7 +111,8 @@ async function postJson(path, body, cookie) {
 
 /**
  * Upload testPhoto.jpg. `options.sharedWith` is the optional visibility list
- * (omitted means public); `options.filename` is the client-supplied name.
+ * (omitted means public); `options.sharedWithRaw` sends an unparsed value for
+ * invalid-list tests; `options.filename` is the client-supplied name.
  */
 async function uploadPhoto(cookie, options) {
   const settings = options || {};
@@ -110,7 +128,9 @@ async function uploadPhoto(cookie, options) {
       contentType: "image/jpg",
     }
   );
-  if (settings.sharedWith !== undefined) {
+  if (settings.sharedWithRaw !== undefined) {
+    form.append("shared_with", settings.sharedWithRaw);
+  } else if (settings.sharedWith !== undefined) {
     form.append("shared_with", JSON.stringify(settings.sharedWith));
   }
 
@@ -149,6 +169,8 @@ module.exports = {
   getJson,
   getResponse,
   postJson,
+  postResponse,
+  deleteResponse,
   uploadPhoto,
   deletePhoto,
   deleteComment,
