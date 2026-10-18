@@ -42,8 +42,9 @@ NOT installed by this directory's `npm install`). The API tests need a
 
 ```sh
 cd test && npm install
-cd test && npm test                                   # all three suites
+cd test && npm test                                   # all four suites
 cd test && node_modules/.bin/mocha serverApiTest.js   # one file
+cd test && node_modules/.bin/mocha usageApiTest.js    # usage summary endpoint
 cd test && node_modules/.bin/mocha serverApiTest.js --grep "user/list"
 ```
 
