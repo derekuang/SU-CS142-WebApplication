@@ -12,28 +12,7 @@ const fs = require("fs");
 const axios = require("axios");
 const FormData = require('form-data');
 
-
-const port = 3000;
-const host = "127.0.0.1";
-
-function makeFullUrl(url) {
-  return "http://" + host + ":" + port + url;
-}
-
-function assertEqualDates(d1, d2) {
-  return new Date(d1).valueOf() === new Date(d2).valueOf();
-}
-/**
- * MongoDB automatically adds some properties to our models. We allow these to
- * appear by removing them when before checking for invalid properties. This way
- * the models are permitted but not required to have these properties.
- */
-function removeMongoProperties(model) {
-  const copy = JSON.parse(JSON.stringify(model));
-  delete copy._id;
-  delete copy.__v;
-  return copy;
-}
+const { login, makeFullUrl } = require("./apiTestHelpers.js");
 
 describe("CS142 Photo App: Session and Input API Tests", function () {
   let sessionCookie;
@@ -114,22 +93,12 @@ describe("CS142 Photo App: Session and Input API Tests", function () {
         });
     });
     it("accepts logins to existing login_name with correct password", function (done) {
-      axios
-        .post(makeFullUrl("/admin/login"), {
-          login_name: "took",
-          password: "weak",
-        })
-        .then(function (response) {
-          assert.strictEqual(
-            response.status,
-            200,
-            "HTTP response status code 200"
-          );
-          sessionCookie = response.headers['set-cookie'][0];
-          assert.ok(sessionCookie, 'Session cookie found')
+      login("took")
+        .then(function (session) {
+          sessionCookie = session.cookie;
           done();
         })
-        .catch(function (error) {
+        .catch(function () {
           assert.fail("Unexpected error received");
         });
     });
@@ -181,20 +150,14 @@ describe("CS142 Photo App: Session and Input API Tests", function () {
 
 
     it("can login as took and get id", function (done) {
-      axios
-        .post(makeFullUrl("/admin/login"), {
-          login_name: "took",
-          password: "weak",
-        })
-        .then(function (response) {
-          sessionCookie = response.headers['set-cookie'][0];
-          assert.ok(sessionCookie, 'Session cookie found')
-          assert.strictEqual(response.status, 200, "HTTP response status code 200");
-          assert.ok(response.data._id, "Login response body contains user's _id");
-          user_id = response.data._id;
+      login("took")
+        .then(function (session) {
+          sessionCookie = session.cookie;
+          assert.ok(session.user._id, "Login response body contains user's _id");
+          user_id = session.user._id;
           done();
         })
-        .catch(function (error) {
+        .catch(function () {
           assert.fail("Unexpected error received");
         });
     });
@@ -294,20 +257,14 @@ describe("CS142 Photo App: Session and Input API Tests", function () {
     let sessionCookie;
 
     it("can login as took and get id", function (done) {
-      axios
-        .post(makeFullUrl("/admin/login"), {
-          login_name: "took",
-          password: "weak",
-        })
-        .then(function (response) {
-          sessionCookie = response.headers['set-cookie'][0];
-          assert.ok(sessionCookie, 'Session cookie found')
-          assert.strictEqual(response.status, 200, "HTTP response status code 200");
-          assert.ok(response.data._id, "Login response body contains user's _id");
-          user_id = response.data._id;
+      login("took")
+        .then(function (session) {
+          sessionCookie = session.cookie;
+          assert.ok(session.user._id, "Login response body contains user's _id");
+          user_id = session.user._id;
           done();
         })
-        .catch(function (error) {
+        .catch(function () {
           assert.fail("Unexpected error received");
         });
     });

@@ -52,6 +52,10 @@ cd test && node_modules/.bin/mocha serverApiTest.js --grep "user/list"
 server. Seeded logins use `login_name = last_name.toLowerCase()` with password
 `weak` (e.g. `took`/`weak`; also malcolm, ripley, kenobi, ludgate, ousterhout).
 
+Shared HTTP/session helpers (`login`, `getJson`, `postJson`, `uploadPhoto`,
+`deletePhoto`, `deleteComment`, and common assertions) live in
+`test/apiTestHelpers.js`; suite-specific shape checks stay with their suite.
+
 ## Lint
 
 `npm run lint` ends with `|| exit 0`, so it **always exits 0** even when ESLint

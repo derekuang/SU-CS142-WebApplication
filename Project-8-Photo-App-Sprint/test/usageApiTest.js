@@ -15,14 +15,19 @@
 
 const assert = require("assert");
 const _ = require("lodash");
-const axios = require("axios");
-const fs = require("fs");
-const FormData = require("form-data");
 
 const cs142models = require("../modelData/photoApp.js").cs142models;
 
-const port = 3000;
-const host = "127.0.0.1";
+const {
+  assertEqualDates,
+  assertAllowedProperties,
+  login,
+  getJson,
+  getResponse,
+  postJson,
+  uploadPhoto,
+  deletePhoto,
+} = require("./apiTestHelpers.js");
 
 // Exact response shapes. The recent-photo query only selects file_name and
 // date_time (MongoDB still returns _id); the most-commented aggregation adds
@@ -35,81 +40,6 @@ const mostCommentedPhotoProperties = [
   "date_time",
   "commentCount",
 ];
-
-function makeFullUrl(url) {
-  return "http://" + host + ":" + port + url;
-}
-
-function assertEqualDates(d1, d2, message) {
-  assert.strictEqual(
-    new Date(d1).valueOf(),
-    new Date(d2).valueOf(),
-    message + ": expected " + d1 + " to equal " + d2
-  );
-}
-
-function authHeaders(cookie) {
-  return { Cookie: cookie };
-}
-
-function login(loginName) {
-  return axios
-    .post(makeFullUrl("/admin/login"), {
-      login_name: loginName,
-      password: "weak",
-    })
-    .then(function (response) {
-      const cookie =
-        response.headers["set-cookie"] && response.headers["set-cookie"][0];
-      assert.ok(cookie, "Session cookie found for " + loginName);
-      return { cookie: cookie, user: response.data };
-    });
-}
-
-function getJson(path, cookie) {
-  return axios
-    .get(makeFullUrl(path), { headers: authHeaders(cookie) })
-    .then(function (response) {
-      assert.strictEqual(
-        response.status,
-        200,
-        "HTTP response status code 200"
-      );
-      return response.data;
-    });
-}
-
-function uploadPhoto(cookie, sharedWith) {
-  const form = new FormData();
-  form.append(
-    "uploadedphoto",
-    fs.createReadStream(__dirname + "/testPhoto.jpg"),
-    {
-      filename: "p" + String(new Date().valueOf()) + ".jpg",
-      contentType: "image/jpg",
-    }
-  );
-  if (sharedWith !== undefined) {
-    form.append("shared_with", JSON.stringify(sharedWith));
-  }
-
-  return axios
-    .post(makeFullUrl("/photos/new"), form, {
-      headers: {
-        "Content-Type": "multipart/form-data; boundary=" + form._boundary,
-        Cookie: cookie,
-      },
-    })
-    .then(function (response) {
-      assert.strictEqual(
-        response.status,
-        200,
-        "HTTP response status code 200"
-      );
-      assert.ok(response.data._id, "upload returned the photo's _id");
-      return response.data;
-    });
-}
 
 /**
  * Compute what the usage summary should be for a list of photos, matching the
@@ -160,16 +90,7 @@ function assertPhotoSummary(summary, expected, allowedProperties, label) {
     label + " returned the wrong file_name"
   );
   assertEqualDates(summary.date_time, expected.date_time, label + " date_time");
-
-  const extraProperties = _.difference(
-    Object.keys(summary),
-    allowedProperties
-  );
-  assert.strictEqual(
-    extraProperties.length,
-    0,
-    label + " has extra properties: " + extraProperties
-  );
+  assertAllowedProperties(summary, allowedProperties, label);
 }
 
 describe("CS142 Photo App: Usage API Tests", function () {
@@ -193,8 +114,7 @@ describe("CS142 Photo App: Usage API Tests", function () {
 
   describe("test /usageOfUser/:id authentication", function () {
     it("errors getting a usage summary if not logged in", function (done) {
-      axios
-        .get(makeFullUrl("/usageOfUser/" + viewer._id))
+      getResponse("/usageOfUser/" + viewer._id)
         .then(function () {
           assert.fail("Expected error not received");
         })
@@ -276,27 +196,18 @@ describe("CS142 Photo App: Usage API Tests", function () {
     it("returns a null summary for a user with no photos", function () {
       const uniqueName = "usage" + String(new Date().valueOf());
 
-      return axios
-        .post(makeFullUrl("/user"), {
-          login_name: uniqueName,
-          password: "weak",
-          first_name: "Usage",
-          last_name: "Tester" + uniqueName,
-          location: "Nowhere",
-          description: "A user without photos",
-          occupation: "Tester",
-        })
-        .then(function (response) {
-          assert.strictEqual(
-            response.status,
-            200,
-            "HTTP response status code 200"
-          );
-          assert.ok(response.data._id, "registration returned the user's _id");
-          return getJson(
-            "/usageOfUser/" + response.data._id,
-            sessionCookie
-          );
+      return postJson("/user", {
+        login_name: uniqueName,
+        password: "weak",
+        first_name: "Usage",
+        last_name: "Tester" + uniqueName,
+        location: "Nowhere",
+        description: "A user without photos",
+        occupation: "Tester",
+      })
+        .then(function (newUser) {
+          assert.ok(newUser._id, "registration returned the user's _id");
+          return getJson("/usageOfUser/" + newUser._id, sessionCookie);
         })
         .then(function (usage) {
           assert.deepStrictEqual(usage, {
@@ -319,10 +230,7 @@ describe("CS142 Photo App: Usage API Tests", function () {
     });
 
     it("returns a 400 status on a malformed user id", function (done) {
-      axios
-        .get(makeFullUrl("/usageOfUser/1"), {
-          headers: authHeaders(sessionCookie),
-        })
+      getResponse("/usageOfUser/1", sessionCookie)
         .then(function () {
           assert.fail("Expected error not received");
         })
@@ -346,9 +254,7 @@ describe("CS142 Photo App: Usage API Tests", function () {
       }
       const photoId = restrictedPhotoId;
       restrictedPhotoId = undefined;
-      return axios.delete(makeFullUrl("/photos/" + photoId), {
-        headers: authHeaders(sessionCookie),
-      });
+      return deletePhoto(sessionCookie, photoId);
     });
 
     it("only reports photos the requesting user may see", function () {
@@ -362,7 +268,9 @@ describe("CS142 Photo App: Usage API Tests", function () {
           malcolmCookie = session.cookie;
 
           // Share the new photo with Malcolm only; Ripley must still not see it.
-          return uploadPhoto(sessionCookie, [malcolm._id]);
+          return uploadPhoto(sessionCookie, {
+            sharedWith: [malcolm._id],
+          });
         })
         .then(function (photo) {
           restrictedPhotoId = photo._id;
@@ -384,10 +292,10 @@ describe("CS142 Photo App: Usage API Tests", function () {
           for (let i = 0; i <= maxPublicComments; i += 1) {
             const commentNumber = i;
             chain = chain.then(function () {
-              return axios.post(
-                makeFullUrl("/commentsOfPhoto/" + restrictedPhotoId),
+              return postJson(
+                "/commentsOfPhoto/" + restrictedPhotoId,
                 { comment: "restricted comment " + commentNumber },
-                { headers: authHeaders(sessionCookie) }
+                sessionCookie
               );
             });
           }
@@ -455,18 +363,12 @@ describe("CS142 Photo App: Usage API Tests", function () {
       let photoId;
 
       try {
-        const registration = await axios.post(makeFullUrl("/user"), {
+        newUser = await postJson("/user", {
           login_name: uniqueName,
           password: "weak",
           first_name: "Uncommented",
           last_name: "Tester" + uniqueName,
         });
-        assert.strictEqual(
-          registration.status,
-          200,
-          "HTTP response status code 200"
-        );
-        newUser = registration.data;
 
         const session = await login(uniqueName);
         newUserCookie = session.cookie;
@@ -495,9 +397,7 @@ describe("CS142 Photo App: Usage API Tests", function () {
         );
       } finally {
         if (photoId) {
-          await axios.delete(makeFullUrl("/photos/" + photoId), {
-            headers: authHeaders(newUserCookie),
-          });
+          await deletePhoto(newUserCookie, photoId);
         }
       }
     });

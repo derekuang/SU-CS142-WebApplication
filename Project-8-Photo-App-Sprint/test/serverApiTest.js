@@ -12,8 +12,7 @@ const _ = require("lodash");
 
 const cs142models = require("../modelData/photoApp.js").cs142models;
 
-const port = 3000;
-const host = "127.0.0.1";
+const { port, host, assertEqualDates } = require("./apiTestHelpers.js");
 
 // Valid properties of a user list model
 const userListProperties = ["first_name", "last_name", "_id"];
@@ -41,10 +40,6 @@ const photoProperties = [
 // Valid comments properties. The Sprint's @mention feature adds `mentions`
 // (an array of mentioned users) to each comment.
 const commentProperties = ["comment", "date_time", "_id", "user", "mentions"];
-
-function assertEqualDates(d1, d2) {
-  assert(new Date(d1).valueOf() === new Date(d2).valueOf());
-}
 
 /**
  * MongoDB automatically adds some properties to our models. We allow these to

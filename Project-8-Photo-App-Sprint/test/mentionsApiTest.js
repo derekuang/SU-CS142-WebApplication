@@ -12,88 +12,22 @@
 
 const assert = require("assert");
 const _ = require("lodash");
-const axios = require("axios");
-const fs = require("fs");
-const FormData = require("form-data");
 
-const port = 3000;
-const host = "127.0.0.1";
+const {
+  assertEqualDates,
+  assertAllowedProperties,
+  login,
+  getJson,
+  getResponse,
+  postJson,
+  uploadPhoto,
+  deletePhoto,
+  deleteComment,
+} = require("./apiTestHelpers.js");
 
 // Exact shapes of the mention data the API exposes.
 const mentionUserProperties = ["_id", "first_name", "last_name"];
 const mentionPhotoProperties = ["_id", "file_name", "date_time", "owner"];
-
-function makeFullUrl(url) {
-  return "http://" + host + ":" + port + url;
-}
-
-function authHeaders(cookie) {
-  return { Cookie: cookie };
-}
-
-function assertEqualDates(d1, d2, message) {
-  assert.strictEqual(
-    new Date(d1).valueOf(),
-    new Date(d2).valueOf(),
-    message + ": expected " + d1 + " to equal " + d2
-  );
-}
-
-function assertAllowedProperties(object, allowedProperties, label) {
-  const extraProperties = _.difference(
-    Object.keys(object),
-    allowedProperties
-  );
-  assert.strictEqual(
-    extraProperties.length,
-    0,
-    label + " has extra properties: " + extraProperties
-  );
-}
-
-async function login(loginName) {
-  const response = await axios.post(makeFullUrl("/admin/login"), {
-    login_name: loginName,
-    password: "weak",
-  });
-  const cookie =
-    response.headers["set-cookie"] && response.headers["set-cookie"][0];
-  assert.ok(cookie, "Session cookie found for " + loginName);
-  return { cookie: cookie, user: response.data };
-}
-
-async function getJson(path, cookie) {
-  const response = await axios.get(makeFullUrl(path), {
-    headers: authHeaders(cookie),
-  });
-  assert.strictEqual(response.status, 200, "HTTP response status code 200");
-  return response.data;
-}
-
-async function uploadPhoto(cookie, sharedWith) {
-  const form = new FormData();
-  form.append(
-    "uploadedphoto",
-    fs.createReadStream(__dirname + "/testPhoto.jpg"),
-    {
-      filename: "p" + String(new Date().valueOf()) + ".jpg",
-      contentType: "image/jpg",
-    }
-  );
-  if (sharedWith !== undefined) {
-    form.append("shared_with", JSON.stringify(sharedWith));
-  }
-
-  const response = await axios.post(makeFullUrl("/photos/new"), form, {
-    headers: {
-      "Content-Type": "multipart/form-data; boundary=" + form._boundary,
-      Cookie: cookie,
-    },
-  });
-  assert.strictEqual(response.status, 200, "HTTP response status code 200");
-  assert.ok(response.data._id, "upload returned the photo's _id");
-  return response.data;
-}
 
 describe("CS142 Photo App: Mentions API Tests", function () {
   // Several tests upload a photo and add comments, so allow more than Mocha's
@@ -115,14 +49,13 @@ describe("CS142 Photo App: Mentions API Tests", function () {
   }
 
   async function addComment(photoId, text) {
-    const response = await axios.post(
-      makeFullUrl("/commentsOfPhoto/" + photoId),
+    const updatedPhoto = await postJson(
+      "/commentsOfPhoto/" + photoId,
       { comment: text },
-      { headers: authHeaders(sessionCookie) }
+      sessionCookie
     );
-    assert.strictEqual(response.status, 200, "HTTP response status code 200");
 
-    const comments = response.data.comments || [];
+    const comments = updatedPhoto.comments || [];
     const comment = comments[comments.length - 1];
     assert(comment, "the updated photo contains the new comment");
     assert.strictEqual(
@@ -152,14 +85,9 @@ describe("CS142 Photo App: Mentions API Tests", function () {
     return comment;
   }
 
-  async function deleteComment(entry) {
+  async function removeComment(entry) {
     try {
-      await axios.delete(
-        makeFullUrl(
-          "/commentsOfPhoto/" + entry.photoId + "/" + entry.commentId
-        ),
-        { headers: authHeaders(sessionCookie) }
-      );
+      await deleteComment(sessionCookie, entry.photoId, entry.commentId);
     } catch (error) {
       // Best-effort cleanup: the test may already have deleted the comment.
     }
@@ -220,7 +148,7 @@ describe("CS142 Photo App: Mentions API Tests", function () {
     const entries = commentsToDelete;
     commentsToDelete = [];
     for (const entry of entries) {
-      await deleteComment(entry);
+      await removeComment(entry);
     }
   });
 
@@ -229,9 +157,7 @@ describe("CS142 Photo App: Mentions API Tests", function () {
       return;
     }
     try {
-      await axios.delete(makeFullUrl("/photos/" + photo._id), {
-        headers: authHeaders(sessionCookie),
-      });
+      await deletePhoto(sessionCookie, photo._id);
     } catch (error) {
       // Best-effort cleanup.
     }
@@ -240,7 +166,7 @@ describe("CS142 Photo App: Mentions API Tests", function () {
   describe("test /mentionsOfUser/:id authentication", function () {
     it("errors getting mentions if not logged in", async function () {
       await assert.rejects(
-        axios.get(makeFullUrl("/mentionsOfUser/" + ripley._id)),
+        getResponse("/mentionsOfUser/" + ripley._id),
         function (error) {
           return error.response && error.response.status === 401;
         }
@@ -423,12 +349,7 @@ describe("CS142 Photo App: Mentions API Tests", function () {
         "the photo is listed before the comment is deleted"
       );
 
-      await axios.delete(
-        makeFullUrl(
-          "/commentsOfPhoto/" + photo._id + "/" + added._id
-        ),
-        { headers: authHeaders(sessionCookie) }
-      );
+      await deleteComment(sessionCookie, photo._id, added._id);
       commentsToDelete = commentsToDelete.filter(function (entry) {
         return entry.commentId !== added._id;
       });
@@ -488,7 +409,9 @@ describe("CS142 Photo App: Mentions API Tests", function () {
     it("omits mentions on photos the viewer cannot see", async function () {
       let restricted;
       try {
-        restricted = await uploadPhoto(sessionCookie, [malcolm._id]);
+        restricted = await uploadPhoto(sessionCookie, {
+          sharedWith: [malcolm._id],
+        });
         await addComment(
           restricted._id,
           "Restricted @[Ellen Ripley](" + ripley._id + ")"
@@ -529,9 +452,7 @@ describe("CS142 Photo App: Mentions API Tests", function () {
             return entry.photoId !== restricted._id;
           });
           try {
-            await axios.delete(makeFullUrl("/photos/" + restricted._id), {
-              headers: authHeaders(sessionCookie),
-            });
+            await deletePhoto(sessionCookie, restricted._id);
           } catch (error) {
             // Best-effort cleanup.
           }
