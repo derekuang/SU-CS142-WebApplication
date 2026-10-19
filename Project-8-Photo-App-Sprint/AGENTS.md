@@ -64,6 +64,11 @@ cd test && node_modules/.bin/mocha taggingApiTest.js  # photo tagging endpoints
 Non-interactive equivalent:
 `docker compose exec -T --user node app sh -c 'cd test && npm test'`.
 
+After every Mocha run (including a failed one), `test/.mocharc.json` loads
+`cleanupTestEnvironment.js`, which re-seeds the database and deletes everything
+in `images/` except the 13 seed files. This also applies to single-file runs.
+Run `cd test && npm run cleanup` to restore both by hand.
+
 Run whole files, not `--grep` subsets: suites such as `serverApiTest.js` depend
 on login state set up by earlier tests in the same file.
 
