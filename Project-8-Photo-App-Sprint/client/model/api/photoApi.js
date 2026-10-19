@@ -3,9 +3,10 @@ import axios from "axios";
 /**
  * Photo API (client-side Model).
  *
- * The single place the UI calls the /photosOfUser, /photos/new, and
- * /commentsOfPhoto endpoints. Each function resolves with the response body
- * and rejects with the original axios error.
+ * The single place the UI calls the /photosOfUser, /photos/new,
+ * /commentsOfPhoto, /photos/:id/tags, and like/favorite endpoints. Each
+ * function resolves with the response body and rejects with the original axios
+ * error.
  */
 
 /**
@@ -98,6 +99,43 @@ export function deletePhoto(photoId) {
 export function deleteComment(photoId, commentId) {
   return axios
     .delete(`/commentsOfPhoto/${photoId}/${commentId}`)
+    .then((response) => response.data);
+}
+
+/**
+ * Tag a registered user inside a rectangular region of a photo.
+ *
+ * Coordinates are fractions (0-1) of the photo's own dimensions, so the server
+ * and every client size agree on where the rectangle belongs. The server clips
+ * the rectangle to the image and rejects an empty/too-small one.
+ *
+ * @param {string} photoId The photo's _id.
+ * @param {object} tag `{ userId, x, y, width, height }`.
+ * @returns {Promise<{tag: object}>} The created tag in its public shape.
+ */
+export function addTag(photoId, tag) {
+  return axios
+    .post(`/photos/${photoId}/tags`, {
+      user_id: tag.userId,
+      x: tag.x,
+      y: tag.y,
+      width: tag.width,
+      height: tag.height,
+    })
+    .then((response) => response.data);
+}
+
+/**
+ * Remove a tag from a photo. The server allows the photo's owner and the tag's
+ * creator.
+ *
+ * @param {string} photoId The photo's _id.
+ * @param {string} tagId The tag's _id.
+ * @returns {Promise<object>} The server's confirmation.
+ */
+export function deleteTag(photoId, tagId) {
+  return axios
+    .delete(`/photos/${photoId}/tags/${tagId}`)
     .then((response) => response.data);
 }
 

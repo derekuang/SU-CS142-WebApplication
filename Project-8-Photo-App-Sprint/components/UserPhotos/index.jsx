@@ -25,6 +25,8 @@ function UserPhotos(props) {
     onAddComment,
     onDeletePhoto,
     onDeleteComment,
+    onAddTag,
+    onDeleteTag,
     onToggleLike,
     onFavorite,
     mentionSuggestions,
@@ -78,6 +80,8 @@ function UserPhotos(props) {
       onAddComment={onAddComment}
       onDeletePhoto={handleDeletePhoto}
       onDeleteComment={onDeleteComment}
+      onAddTag={onAddTag}
+      onDeleteTag={onDeleteTag}
       onToggleLike={onToggleLike}
       onFavorite={onFavorite}
       mentionSuggestions={mentionSuggestions}

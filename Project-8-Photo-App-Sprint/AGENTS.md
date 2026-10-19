@@ -47,7 +47,7 @@ docker compose up -d
 docker compose exec --user node app sh
 
 # inside the container:
-cd test && npm test                                   # installs deps, reseeds DB, all eleven suites
+cd test && npm test                                   # installs deps, reseeds DB, all twelve suites
 cd test && node_modules/.bin/mocha serverApiTest.js   # one file (after a first npm test)
 cd test && node_modules/.bin/mocha usageApiTest.js    # usage summary endpoint
 cd test && node_modules/.bin/mocha mentionsApiTest.js # @mentions endpoints
@@ -57,6 +57,7 @@ cd test && node_modules/.bin/mocha sidebarActivityApiTest.js # per-user sidebar 
 cd test && node_modules/.bin/mocha deletionApiTest.js # deleting comments, photos, users
 cd test && node_modules/.bin/mocha likesApiTest.js    # photo like votes
 cd test && node_modules/.bin/mocha favoritesApiTest.js # favorites list
+cd test && node_modules/.bin/mocha taggingApiTest.js  # photo tagging endpoints
 ```
 
 Non-interactive equivalent:
@@ -97,6 +98,14 @@ Auth is an `express-session` cookie; `/admin/currentUser` restores login on
 reload. Uploads go through multer into `images/` with unique, sanitized names.
 `advancedFeatures` in the session store is intentionally non-persistent (starts
 off on every launch).
+
+Photo tagging is exposed only in the single-photo stepper (the optional
+advanced view): enable **Advanced features** in the top bar to reach it. Tags
+are embedded in `Photo.tags` with coordinates stored as 0-1 fractions of the
+image, so the overlay is independent of scroll and display size. A tag may be
+removed by the photo's owner or by the user who created it; deleting the
+tagged user removes the tag, while deleting the creator only clears
+`tagged_by`.
 
 ## Before submitting
 

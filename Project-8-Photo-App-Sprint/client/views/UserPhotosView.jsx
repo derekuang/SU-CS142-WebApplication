@@ -5,6 +5,7 @@ import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -18,6 +19,7 @@ import {
   ListItem,
   ListItemText,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -26,17 +28,21 @@ import Grid from "@mui/material/Unstable_Grid2";
 import humanize from "../utils/humanize.js";
 import renderCommentHtml from "../utils/mentions.js";
 import ConfirmDialogView from "./ConfirmDialogView.jsx";
+import TaggedPhotoView from "./TaggedPhotoView.jsx";
 
 /**
- * Presentational view for a user's photos and their comments.
+ * Presentational view for a user's photos, their comments, and their tags.
  *
  * Renders only what it is given: `photos` (or a loading placeholder), an
- * `onAddComment(photoId, text)` handler that performs the actual request, and
- * the `mentionSuggestions` the comment box offers when @mentioning. It performs
+ * `onAddComment(photoId, text)` handler that performs the actual request, an
+ * `onAddTag(photoId, tag)` handler for the stepper's tagging mode, and the
+ * `mentionSuggestions` the comment box offers when @mentioning. It performs
  * no data fetching itself.
  *
  * `advancedFeatures` selects the layout: off is the original grid of every
- * photo, on is a single-photo viewer with prev/next stepper controls.
+ * photo, on is a single-photo viewer with prev/next stepper controls. Tagging
+ * is deliberately exposed only in the stepper (the optional advanced view);
+ * the grid is unchanged.
  */
 
 /**
@@ -447,17 +453,80 @@ function PhotoStepperView({
   onAddComment,
   onRequestDeletePhoto,
   onRequestDeleteComment,
+  onAddTag,
+  onRequestDeleteTag,
   onToggleLike,
   onFavorite,
   mentionSuggestions,
   onPrev,
   onNext,
 }) {
+  const [tagMode, setTagMode] = React.useState(false);
+  const [pendingRect, setPendingRect] = React.useState(null);
+  const [selectedUser, setSelectedUser] = React.useState(null);
+  const [tagError, setTagError] = React.useState("");
+  const [savingTag, setSavingTag] = React.useState(false);
+
+  // The hook already loads every registered user for @mentions; the tag
+  // autocomplete uses the same { id, display } list rather than fetching it
+  // again.
+  const userOptions = mentionSuggestions || [];
+
+  const clearTagSelection = () => {
+    setPendingRect(null);
+    setSelectedUser(null);
+    setTagError("");
+  };
+
+  const toggleTagMode = () => {
+    if (tagMode) {
+      setTagMode(false);
+      clearTagSelection();
+      return;
+    }
+    setTagMode(true);
+    setTagError("");
+  };
+
+  const handleSelectRect = (rect) => {
+    if (rect) {
+      setPendingRect(rect);
+      setSelectedUser(null);
+      setTagError("");
+      return;
+    }
+    // The drag was deliberate but too small; keep no selection and explain.
+    setPendingRect(null);
+    setSelectedUser(null);
+    setTagError("Drag a larger area.");
+  };
+
   if (photos.length === 0) {
     return <Typography color="text.secondary">No photos yet</Typography>;
   }
 
   const photo = photos[currentIndex];
+
+  const handleSaveTag = () => {
+    if (!pendingRect || !selectedUser) {
+      return;
+    }
+    setSavingTag(true);
+    setTagError("");
+    onAddTag(photo._id, {
+      userId: selectedUser.id,
+      ...pendingRect,
+    })
+      .then(() => {
+        setSavingTag(false);
+        setPendingRect(null);
+        setSelectedUser(null);
+      })
+      .catch((message) => {
+        setSavingTag(false);
+        setTagError(message || "Unable to add tag. Please try again.");
+      });
+  };
 
   return (
     <Box
@@ -469,16 +538,64 @@ function PhotoStepperView({
       }}
     >
       <Card sx={{ p: 2 }}>
-        <CardMedia
-          component="img"
-          alt={photo.file_name}
-          src={`images/${photo.file_name}`}
-          sx={{
-            width: "100%",
-            maxHeight: { xs: 300, md: 500 },
-            objectFit: "contain",
-          }}
+        <TaggedPhotoView
+          photo={photo}
+          tagMode={tagMode}
+          busy={savingTag}
+          pendingRect={pendingRect}
+          onSelectRect={handleSelectRect}
+          onRequestDeleteTag={(tag) => onRequestDeleteTag(photo._id, tag)}
         />
+        {tagMode ? (
+          <Box sx={{ mt: 2 }}>
+            {pendingRect ? (
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                alignItems={{ xs: "stretch", sm: "center" }}
+              >
+                <Autocomplete
+                  size="small"
+                  options={userOptions}
+                  value={selectedUser}
+                  getOptionLabel={(option) => option.display || ""}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  onChange={(event, value) => setSelectedUser(value)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Tag this person"
+                      size="small"
+                    />
+                  )}
+                  sx={{ flexGrow: 1, minWidth: { sm: 240 } }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleSaveTag}
+                  disabled={!selectedUser || savingTag}
+                >
+                  {savingTag ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  onClick={clearTagSelection}
+                  disabled={savingTag}
+                >
+                  Cancel
+                </Button>
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Drag on the photo to select a face.
+              </Typography>
+            )}
+            {tagError ? (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                {tagError}
+              </Typography>
+            ) : null}
+          </Box>
+        ) : null}
         <CardContent variant="body2">
           <Chip
             label={humanize(photo.date_time)}
@@ -487,6 +604,15 @@ function PhotoStepperView({
           />
           <LikeButton photo={photo} onToggleLike={onToggleLike} />
           <FavoriteButton photo={photo} onFavorite={onFavorite} />
+          <Button
+            size="small"
+            variant={tagMode ? "contained" : "outlined"}
+            sx={{ ml: 1 }}
+            onClick={toggleTagMode}
+            disabled={savingTag}
+          >
+            {tagMode ? "Done" : "Tag people"}
+          </Button>
           {photo.user_id === viewerId ? (
             <Button
               size="small"
@@ -534,14 +660,16 @@ function UserPhotosView({
   onAddComment,
   onDeletePhoto,
   onDeleteComment,
+  onAddTag,
+  onDeleteTag,
   onToggleLike,
   onFavorite,
   mentionSuggestions,
   onPrev,
   onNext,
 }) {
-  // The delete confirmation dialog is shared by the photo and comment buttons;
-  // `pending` records which one is being confirmed ({ kind, photoId, commentId }).
+  // The delete confirmation dialog is shared by the photo, comment, and tag
+  // buttons; `pending` records which one is being confirmed.
   const [pending, setPending] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -556,6 +684,20 @@ function UserPhotosView({
     setError("");
     setBusy(false);
     setPending({ kind: "comment", photoId, commentId });
+  };
+
+  const requestDeleteTag = (photoId, tag) => {
+    setError("");
+    setBusy(false);
+    setPending({
+      kind: "tag",
+      photoId,
+      tagId: tag._id,
+      tagName:
+        tag.user && tag.user.first_name
+          ? `${tag.user.first_name} ${tag.user.last_name}`
+          : "this person",
+    });
   };
 
   const cancelDelete = () => {
@@ -574,7 +716,9 @@ function UserPhotosView({
     const action =
       pending.kind === "photo"
         ? onDeletePhoto(pending.photoId)
-        : onDeleteComment(pending.photoId, pending.commentId);
+        : pending.kind === "comment"
+          ? onDeleteComment(pending.photoId, pending.commentId)
+          : onDeleteTag(pending.photoId, pending.tagId);
 
     action
       .then(() => {
@@ -592,17 +736,26 @@ function UserPhotosView({
   }
 
   const isPhotoDelete = Boolean(pending) && pending.kind === "photo";
+  const isTagDelete = Boolean(pending) && pending.kind === "tag";
 
   const dialog = (
     <ConfirmDialogView
       open={Boolean(pending)}
-      title={isPhotoDelete ? "Delete photo?" : "Delete comment?"}
-      message={
-        isPhotoDelete
-          ? "This photo and all of its comments will be permanently deleted."
-          : "This comment will be permanently deleted."
+      title={
+        isTagDelete
+          ? "Remove tag?"
+          : isPhotoDelete
+            ? "Delete photo?"
+            : "Delete comment?"
       }
-      confirmLabel="Delete"
+      message={
+        isTagDelete
+          ? `Remove the tag of ${pending.tagName} from this photo?`
+          : isPhotoDelete
+            ? "This photo and all of its comments will be permanently deleted."
+            : "This comment will be permanently deleted."
+      }
+      confirmLabel={isTagDelete ? "Remove" : "Delete"}
       busy={busy}
       error={error}
       onConfirm={confirmDelete}
@@ -614,12 +767,15 @@ function UserPhotosView({
     return (
       <React.Fragment>
         <PhotoStepperView
+          key={photos[currentIndex] ? photos[currentIndex]._id : "empty"}
           photos={photos}
           currentIndex={currentIndex}
           viewerId={viewerId}
           onAddComment={onAddComment}
           onRequestDeletePhoto={requestDeletePhoto}
           onRequestDeleteComment={requestDeleteComment}
+          onAddTag={onAddTag}
+          onRequestDeleteTag={requestDeleteTag}
           onToggleLike={onToggleLike}
           onFavorite={onFavorite}
           mentionSuggestions={mentionSuggestions}

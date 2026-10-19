@@ -5,6 +5,8 @@ import {
   addComment,
   deletePhoto,
   deleteComment,
+  addTag,
+  deleteTag,
   likePhoto,
   unlikePhoto,
   favoritePhoto,
@@ -54,8 +56,9 @@ function replacePhoto(photos, photoId, update) {
  * Fetches the photos for `userId`, refetching when the id changes or when
  * `refreshToken` changes (so an upload elsewhere refreshes the view). Also
  * exposes the mutating actions - `onAddComment`, `onDeletePhoto`,
- * `onDeleteComment`, `onToggleLike`, `onFavorite` - each of which submits,
- * reloads on success, and rejects with a displayable message on failure.
+ * `onDeleteComment`, `onAddTag`, `onDeleteTag`, `onToggleLike`, `onFavorite`
+ * - each of which submits, reloads on success, and rejects with a displayable
+ * message on failure.
  *
  * Loads the user list once to provide the @mention autocomplete suggestions.
  */
@@ -117,6 +120,32 @@ function useUserPhotos(userId, refreshToken) {
         .catch((err) => {
           return Promise.reject(
             getErrorMessage(err, "Unable to delete comment. Please try again."),
+          );
+        });
+    },
+    [reload],
+  );
+
+  const onAddTag = useCallback(
+    (photoId, tag) => {
+      return addTag(photoId, tag)
+        .then(() => reload())
+        .catch((err) => {
+          return Promise.reject(
+            getErrorMessage(err, "Unable to add tag. Please try again."),
+          );
+        });
+    },
+    [reload],
+  );
+
+  const onDeleteTag = useCallback(
+    (photoId, tagId) => {
+      return deleteTag(photoId, tagId)
+        .then(() => reload())
+        .catch((err) => {
+          return Promise.reject(
+            getErrorMessage(err, "Unable to delete tag. Please try again."),
           );
         });
     },
@@ -187,6 +216,8 @@ function useUserPhotos(userId, refreshToken) {
     onAddComment,
     onDeletePhoto,
     onDeleteComment,
+    onAddTag,
+    onDeleteTag,
     onToggleLike,
     onFavorite,
     mentionSuggestions,

@@ -25,6 +25,20 @@ const PHOTO_ADD_FAILED = "Unable to add photo";
 const INVALID_SHARED_LIST = "Invalid shared list";
 const LIKE_FAILED = "Unable to update like";
 const FAVORITE_FAILED = "Unable to update favorite";
+const TAG_INVALID_COORDINATES = "Invalid tag coordinates";
+const TAG_TOO_SMALL = "Tag area is too small";
+const TAG_USER_NOT_FOUND = "Tagged user not found";
+const TAG_NOT_FOUND = "Tag not found";
+const NOT_TAG_OWNER = "Not your tag";
+const TAG_ADD_FAILED = "Unable to add tag";
+const TAG_DELETE_FAILED = "Unable to delete tag";
+
+/**
+ * Smallest allowed tag rectangle, as a fraction of the photo's width/height.
+ * The client discards a drag smaller than this and the server rejects one, so
+ * a tiny accidental drag can never become a tag.
+ */
+const MIN_TAG_SIZE = 0.02;
 
 /**
  * Matches a react-mentions mention token in a comment's text. react-mentions'
@@ -79,6 +93,127 @@ function byLikesThenNewest(a, b) {
 }
 
 /**
+ * Clamp a number into an inclusive range.
+ *
+ * @param {number} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Round a coordinate to the four decimals stored in the database. Fractions of
+ * a photo do not need more precision, and rounding keeps the JSON compact.
+ *
+ * @param {number} value
+ * @returns {number}
+ */
+function roundCoordinate(value) {
+  return Math.round(value * 10000) / 10000;
+}
+
+/**
+ * Parse one rectangle coordinate. Missing/blank values become NaN so the
+ * caller's `Number.isFinite` check rejects them; numeric strings are accepted
+ * because form encodings may turn numbers into strings.
+ *
+ * @param {*} value
+ * @returns {number}
+ */
+function parseCoordinate(value) {
+  if (value === undefined || value === null) {
+    return NaN;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return NaN;
+  }
+  return Number(value);
+}
+
+/**
+ * Validate and normalize a tag rectangle.
+ *
+ * Coordinates are fractions of the photo's own dimensions. A rectangle that
+ * extends past an edge is clipped to the image, as the story requires; a
+ * rectangle that is too small after clipping is rejected. Values are accepted
+ * as numbers or numeric strings (a JSON body normally provides numbers).
+ *
+ * @param {object} rect `{ x, y, width, height }` from the request body.
+ * @returns {{rect: object}|{error: string}} The clipped rectangle on success,
+ *   or the user-facing validation message.
+ */
+function normalizeRect(rect) {
+  const source = rect || {};
+  const x = parseCoordinate(source.x);
+  const y = parseCoordinate(source.y);
+  const width = parseCoordinate(source.width);
+  const height = parseCoordinate(source.height);
+
+  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+    return { error: TAG_INVALID_COORDINATES };
+  }
+
+  const x1 = roundCoordinate(clamp(x, 0, 1));
+  const y1 = roundCoordinate(clamp(y, 0, 1));
+  const x2 = clamp(x + width, 0, 1);
+  const y2 = clamp(y + height, 0, 1);
+  const clippedWidth = roundCoordinate(Math.min(x2 - x1, 1 - x1));
+  const clippedHeight = roundCoordinate(Math.min(y2 - y1, 1 - y1));
+
+  if (clippedWidth < MIN_TAG_SIZE || clippedHeight < MIN_TAG_SIZE) {
+    return { error: TAG_TOO_SMALL };
+  }
+
+  return {
+    rect: {
+      x: x1,
+      y: y1,
+      width: clippedWidth,
+      height: clippedHeight,
+    },
+  };
+}
+
+/**
+ * Convert one stored tag into the JSON shape the API returns.
+ *
+ * The raw `user_id` becomes `user` (populated by the repository), the creator
+ * id stays private, and `canDelete` tells the client whether to offer the
+ * remove control: the photo's owner may remove any tag, and its creator may
+ * remove their own.
+ *
+ * @param {object} tag A stored tag (with `user_id` populated).
+ * @param {string} photoOwnerId The photo owner's `_id`.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {object} The shaped tag.
+ */
+function shapeTag(tag, photoOwnerId, viewerId) {
+  const { user_id, tagged_by, __v, ...rest } = tag;
+  return {
+    ...rest,
+    user: user_id || null,
+    canDelete:
+      String(photoOwnerId) === String(viewerId) ||
+      (tagged_by !== undefined && String(tagged_by) === String(viewerId)),
+  };
+}
+
+/**
+ * Shape every tag on a photo for the API.
+ *
+ * @param {Array<object>} tags Stored tags.
+ * @param {string} photoOwnerId The photo owner's `_id`.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Array<object>} The shaped tags.
+ */
+function shapeTags(tags, photoOwnerId, viewerId) {
+  return (tags || []).map((tag) => shapeTag(tag, photoOwnerId, viewerId));
+}
+
+/**
  * Convert Photo documents into the JSON shape the API returns: each comment's
  * populated `user_id` reference becomes a `user` property. This mirrors the
  * transformation the original `/photosOfUser/:id` handler performed.
@@ -88,13 +223,17 @@ function byLikesThenNewest(a, b) {
  * dropped, so who-liked-what never leaves the server (the same reason the query
  * strips `shared_with`). The same is done for `favorites`: the raw list is
  * dropped and only the viewer's own membership survives, as
- * `favoritedByViewer` (the favorite button's disabled/indicator state). The
+ * `favoritedByViewer` (the favorite button's disabled/indicator state). Each
+ * tag is shaped into its public form: the tagged user is populated, the creator
+ * id is dropped, and `canDelete` reports whether the viewer may remove it. The
  * result is ordered by likes then recency.
  *
- * @param {Array<object>} photos Mongoose Photo documents (comments populated).
+ * @param {Array<object>} photos Mongoose Photo documents (comments and tags
+ *   populated).
  * @param {string} viewerId The logged in user's `_id`.
  * @returns {Array<object>} Plain photo objects with `comments[].user`,
- *   `likeCount`, `likedByViewer`, and `favoritedByViewer`, most liked first.
+ *   `tags[]`, `likeCount`, `likedByViewer`, and `favoritedByViewer`, most liked
+ *   first.
  */
 function shapePhotos(photos, viewerId) {
   return photos
@@ -111,6 +250,7 @@ function shapePhotos(photos, viewerId) {
       photoObj.favoritedByViewer = favorites.some(
         (id) => String(id) === String(viewerId),
       );
+      photoObj.tags = shapeTags(photoObj.tags, photoObj.user_id, viewerId);
       if (photoObj.comments) {
         photoObj.comments = photoObj.comments.map((comment) => {
           const { user_id, ...rest } = comment;
@@ -357,6 +497,144 @@ function setFavorite(photoId, userId, favorited) {
 }
 
 /**
+ * Add a tag to a photo on behalf of a viewer.
+ *
+ * Any logged in user who may see the photo can tag a registered user in it.
+ * The rectangle is clipped to the image and must be at least `MIN_TAG_SIZE` of
+ * the photo in both dimensions. An unseen or nonexistent photo is reported as
+ * "not found" so its existence is not revealed. Tagging is deliberately silent
+ * in the activity feed, which is defined by its own story.
+ *
+ * @param {string} photoId
+ * @param {string} userId The logged in user's `_id` (the tag creator).
+ * @param {object} tagData `{ user_id, x, y, width, height }` from the body.
+ * @returns {Promise<{tag: object}|{error: string, status: number}>} The shaped
+ *   created tag, or a user-facing error with its HTTP status.
+ */
+function addTag(photoId, userId, tagData) {
+  if (!mongoose.Types.ObjectId.isValid(photoId)) {
+    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
+  }
+
+  return photoRepo.findById(photoId).then(
+    (photo) => {
+      if (!canView(photo, userId)) {
+        return { error: PHOTO_NOT_FOUND, status: 404 };
+      }
+
+      const normalized = normalizeRect(tagData);
+      if (normalized.error) {
+        return { error: normalized.error, status: 400 };
+      }
+
+      const taggedUserId = tagData && tagData.user_id;
+      if (!mongoose.Types.ObjectId.isValid(taggedUserId)) {
+        return { error: TAG_USER_NOT_FOUND, status: 400 };
+      }
+
+      return userRepo.findById(taggedUserId, "first_name last_name").then(
+        (taggedUser) => {
+          if (!taggedUser) {
+            return { error: TAG_USER_NOT_FOUND, status: 400 };
+          }
+
+          const tagId = new mongoose.Types.ObjectId();
+          const dateTime = new Date();
+          const tag = {
+            _id: tagId,
+            user_id: mongoose.Types.ObjectId(taggedUserId),
+            tagged_by: mongoose.Types.ObjectId(userId),
+            x: normalized.rect.x,
+            y: normalized.rect.y,
+            width: normalized.rect.width,
+            height: normalized.rect.height,
+            date_time: dateTime,
+          };
+
+          return photoRepo.addTag(photoId, tag).then(
+            (result) => {
+              if (!result || result.matchedCount === 0) {
+                return { error: PHOTO_NOT_FOUND, status: 404 };
+              }
+              return {
+                tag: {
+                  _id: tagId,
+                  user: {
+                    _id: taggedUser._id,
+                    first_name: taggedUser.first_name,
+                    last_name: taggedUser.last_name,
+                  },
+                  x: tag.x,
+                  y: tag.y,
+                  width: tag.width,
+                  height: tag.height,
+                  date_time: dateTime,
+                  canDelete: true,
+                },
+              };
+            },
+            () => ({ error: TAG_ADD_FAILED, status: 500 }),
+          );
+        },
+        () => ({ error: TAG_USER_NOT_FOUND, status: 400 }),
+      );
+    },
+    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
+  );
+}
+
+/**
+ * Remove a tag from a photo.
+ *
+ * The photo's owner may remove any tag on their photo; a tag's creator may
+ * remove their own tag. The tagged user is deliberately not granted this
+ * ability. Visibility is not re-checked, mirroring comment deletion: a creator
+ * can always withdraw a tag they added, even if the photo was later restricted
+ * away from them.
+ *
+ * @param {string} photoId
+ * @param {string} tagId The tag subdocument's `_id`.
+ * @param {string} userId The acting user's `_id`.
+ * @returns {Promise<{ok: true}|{error: string, status: number}>}
+ */
+function deleteTag(photoId, tagId, userId) {
+  if (!mongoose.Types.ObjectId.isValid(photoId)) {
+    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
+  }
+
+  return photoRepo.findById(photoId).then(
+    (photo) => {
+      if (!photo) {
+        return { error: PHOTO_NOT_FOUND, status: 404 };
+      }
+      if (!mongoose.Types.ObjectId.isValid(tagId)) {
+        return { error: TAG_NOT_FOUND, status: 404 };
+      }
+
+      const tag = photo.tags ? photo.tags.id(tagId) : null;
+      if (!tag) {
+        return { error: TAG_NOT_FOUND, status: 404 };
+      }
+
+      const isOwner = String(photo.user_id) === String(userId);
+      const isCreator =
+        tag.tagged_by !== undefined &&
+        tag.tagged_by !== null &&
+        String(tag.tagged_by) === String(userId);
+      if (!isOwner && !isCreator) {
+        return { error: NOT_TAG_OWNER, status: 403 };
+      }
+
+      return photoRepo.deleteTag(photoId, tagId).then(
+        () => ({ ok: true }),
+        () => ({ error: TAG_DELETE_FAILED, status: 500 }),
+      );
+    },
+    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
+  );
+}
+
+/**
  * Build the logged in user's favorites list for the favorites page.
  *
  * Each entry carries what the list needs: the photo's id, file name, and upload
@@ -526,6 +804,8 @@ module.exports = {
   addComment,
   setLike,
   setFavorite,
+  addTag,
+  deleteTag,
   deletePhoto,
   deleteComment,
   getUsage,

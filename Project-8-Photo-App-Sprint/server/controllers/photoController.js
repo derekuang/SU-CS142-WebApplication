@@ -77,6 +77,59 @@ function addPhoto(request, response) {
 }
 
 /**
+ * POST /photos/:photo_id/tags - Tag a registered user inside a rectangular
+ * region of a photo the logged in user may see.
+ *
+ * The service validates and clips the rectangle, checks that the tagged user
+ * exists, and reports an unseen photo as 404. The created tag is returned in
+ * the same public shape as `GET /photosOfUser/:id`.
+ */
+function addTag(request, response) {
+  photoService
+    .addTag(
+      request.params.photo_id,
+      request.session.user_id,
+      request.body || {},
+    )
+    .then((result) => {
+      if (result.error) {
+        response.status(result.status || 400).send(result.error);
+        return;
+      }
+      response.status(200).send(result);
+    })
+    .catch((err) => {
+      console.log("Error adding tag:", err);
+      response.status(500).send("Unable to add tag");
+    });
+}
+
+/**
+ * DELETE /photos/:photo_id/tags/:tag_id - Remove a tag. Allowed for the photo's
+ * owner and the tag's creator; a missing photo/tag is 404 and an unauthorized
+ * actor is 403.
+ */
+function deleteTag(request, response) {
+  photoService
+    .deleteTag(
+      request.params.photo_id,
+      request.params.tag_id,
+      request.session.user_id,
+    )
+    .then((result) => {
+      if (result.error) {
+        response.status(result.status || 400).send(result.error);
+        return;
+      }
+      response.status(200).send({ status: "ok" });
+    })
+    .catch((err) => {
+      console.log("Error deleting tag:", err);
+      response.status(500).send("Unable to delete tag");
+    });
+}
+
+/**
  * GET /usageOfUser/:id - Return the user's usage summary: their most recent
  * photo and their most commented photo, as shaped by the photo service.
  */
@@ -241,6 +294,8 @@ function getFavorites(request, response) {
 module.exports = {
   photosOfUser,
   addPhoto,
+  addTag,
+  deleteTag,
   getUsage,
   getMentions,
   deletePhoto,

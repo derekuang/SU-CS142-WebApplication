@@ -19,6 +19,30 @@ const commentSchema = new mongoose.Schema({
 });
 
 /**
+ * Define the Mongoose Schema for a Photo Tag.
+ *
+ * A tag marks one registered user inside a rectangular region of the photo.
+ * `x`, `y`, `width`, and `height` are fractions of the photo's own dimensions
+ * (0-1), so the tag stays in place no matter how the image is scaled or how far
+ * the page is scrolled. `tagged_by` records who created the tag so that person
+ * (or the photo's owner) can remove it; it is optional because deleting the
+ * creator's account clears the field rather than deleting their tags.
+ */
+const tagSchema = new mongoose.Schema({
+  // The user this tag marks.
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  // The user who created the tag. Cleared if that account is deleted.
+  tagged_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  // Rectangle relative to the photo: 0-1 fractions of width/height.
+  x: Number,
+  y: Number,
+  width: Number,
+  height: Number,
+  // The date and time when the tag was created.
+  date_time: { type: Date, default: Date.now },
+});
+
+/**
  * Define the Mongoose Schema for a Photo.
  */
 const photoSchema = new mongoose.Schema({
@@ -31,6 +55,10 @@ const photoSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   // Array of comment objects representing the comments made on this photo.
   comments: [commentSchema],
+  // Array of tag objects marking registered users inside rectangular regions
+  // of this photo. Tags are embedded so they share the photo's lifecycle and
+  // are returned together with it by /photosOfUser.
+  tags: [tagSchema],
   // Visibility three-state: the field being absent means the photo is visible
   // to everyone; the field being present (including an empty array) means only
   // the owner and the users listed here may see it.
