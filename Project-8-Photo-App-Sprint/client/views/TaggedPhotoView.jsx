@@ -63,8 +63,8 @@ const styles = {
   tagBox: {
     position: "absolute",
     border: "2px solid",
-    borderColor: "warning.main",
-    bgcolor: "rgba(255, 193, 7, 0.12)",
+    borderColor: "primary.main",
+    bgcolor: "transparent",
     boxSizing: "border-box",
     zIndex: Z_INDEX.tag,
   },
