@@ -28,7 +28,8 @@ node webServer.js      # Express on :3000
 - DB URL from `MONGO_URL` env, else `mongodb://127.0.0.1/cs142project8`.
 - `compiled/` is gitignored and **must be built** — `photo-share.html` only
   loads `compiled/photoShare.bundle.js`.
-- `images/` is gitignored too; the seeded photos live there and are not in git.
+- `images/` is gitignored, but the 13 seed images (12 photos + `favicon.ico`)
+  are force-added and tracked; newly uploaded photos stay untracked.
 - Use `npm run build:w` for a webpack watcher. `nodemon.json` only watches
   server JS (`components/`, `client/`, etc. are ignored), so client edits rebuild
   via webpack, not a nodemon restart.
