@@ -20,17 +20,10 @@ function UserPhotos(props) {
   const advanced = props.advancedFeatures;
   const viewerId = props.currentUser ? props.currentUser._id : null;
 
-  const {
-    photos,
-    onAddComment,
-    onDeletePhoto,
-    onDeleteComment,
-    onAddTag,
-    onDeleteTag,
-    onToggleLike,
-    onFavorite,
-    mentionSuggestions,
-  } = useUserPhotos(userId, props.refreshToken);
+  const { photos, actions, mentionSuggestions } = useUserPhotos(
+    userId,
+    props.refreshToken,
+  );
 
   // Which photo the stepper is on. Falls back to the first photo when no (or an
   // unknown, e.g. deleted) id is in the URL. -1 means there is nothing to show.
@@ -59,7 +52,7 @@ function UserPhotos(props) {
       (photo) => photo._id === deletedPhotoId,
     );
 
-    return onDeletePhoto(deletedPhotoId).then(() => {
+    return actions.onDeletePhoto(deletedPhotoId).then(() => {
       if (!advanced || remaining.length === 0) {
         return;
       }
@@ -71,19 +64,17 @@ function UserPhotos(props) {
     });
   };
 
+  // The view receives one actions object; the deleted photo needs the route
+  // update above, so override just that entry.
+  const photoActions = { ...actions, onDeletePhoto: handleDeletePhoto };
+
   return (
     <UserPhotosView
       advancedFeatures={advanced}
       photos={photos}
       currentIndex={currentIndex}
       viewerId={viewerId}
-      onAddComment={onAddComment}
-      onDeletePhoto={handleDeletePhoto}
-      onDeleteComment={onDeleteComment}
-      onAddTag={onAddTag}
-      onDeleteTag={onDeleteTag}
-      onToggleLike={onToggleLike}
-      onFavorite={onFavorite}
+      actions={photoActions}
       mentionSuggestions={mentionSuggestions}
       onPrev={() => goToIndex(currentIndex - 1)}
       onNext={() => goToIndex(currentIndex + 1)}

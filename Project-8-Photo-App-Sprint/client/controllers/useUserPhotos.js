@@ -54,11 +54,12 @@ function replacePhoto(photos, photoId, update) {
  * Controller for a user's photos view.
  *
  * Fetches the photos for `userId`, refetching when the id changes or when
- * `refreshToken` changes (so an upload elsewhere refreshes the view). Also
- * exposes the mutating actions - `onAddComment`, `onDeletePhoto`,
- * `onDeleteComment`, `onAddTag`, `onDeleteTag`, `onToggleLike`, `onFavorite`
- * - each of which submits, reloads on success, and rejects with a displayable
- * message on failure.
+ * `refreshToken` changes (so an upload elsewhere refreshes the view). Returns
+ * `{ photos, actions, mentionSuggestions }`, where `actions` groups the
+ * mutating actions - `onAddComment`, `onDeletePhoto`, `onDeleteComment`,
+ * `onAddTag`, `onDeleteTag`, `onToggleLike`, `onFavorite` - each of which
+ * submits, reloads on success, and rejects with a displayable message on
+ * failure.
  *
  * Loads the user list once to provide the @mention autocomplete suggestions.
  */
@@ -213,13 +214,15 @@ function useUserPhotos(userId, refreshToken) {
 
   return {
     photos,
-    onAddComment,
-    onDeletePhoto,
-    onDeleteComment,
-    onAddTag,
-    onDeleteTag,
-    onToggleLike,
-    onFavorite,
+    actions: {
+      onAddComment,
+      onDeletePhoto,
+      onDeleteComment,
+      onAddTag,
+      onDeleteTag,
+      onToggleLike,
+      onFavorite,
+    },
     mentionSuggestions,
   };
 }
