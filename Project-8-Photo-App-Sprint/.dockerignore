@@ -1,0 +1,5 @@
+node_modules
+compiled
+.devcontainer
+Dockerfile
+docker-compose.yml

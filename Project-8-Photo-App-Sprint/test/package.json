@@ -1,0 +1,23 @@
+{
+  "name": "project8test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mocha test of server API",
+  "main": "serverApiTest.js",
+  "dependencies": {
+    "async": "^3.2.4",
+    "axios": "^1.4.0",
+    "form-data": "^4.0.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "mocha": "^9.2.0"
+  },
+  "scripts": {
+    "pretest": "npm install --no-audit --no-fund && node ../loadDatabase.js",
+    "test": "TZ=UTC mocha serverApiTest.js usageApiTest.js mentionsApiTest.js visibilityApiTest.js activityApiTest.js sidebarActivityApiTest.js deletionApiTest.js likesApiTest.js favoritesApiTest.js taggingApiTest.js sessionInputApiTest.js photoVisibilityTest.js mentionTokenTest.js passwordApiTest.js",
+    "cleanup": "node cleanupTestEnvironment.js"
+  },
+  "author": "Mendel Rosenblum <mendel@cs.stanford.edu> (http://www.stanford.edu/~mendel)",
+  "license": "ISC"
+}
