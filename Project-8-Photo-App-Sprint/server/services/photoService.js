@@ -8,6 +8,8 @@
 
 const mongoose = require("mongoose");
 
+const { parseMentions } = require("../../shared/mentionToken.js");
+
 const photoRepo = require("../models/photoRepo.js");
 const userRepo = require("../models/userRepo.js");
 const {
@@ -50,37 +52,27 @@ const TAG_DELETE_FAILED = "Unable to delete tag";
 const MIN_TAG_SIZE = 0.02;
 
 /**
- * Matches a react-mentions mention token in a comment's text. react-mentions'
- * default markup encodes a chosen suggestion as `@[display](id)`, where `id` is
- * the mentioned user's `_id`.
- */
-const MENTION_PATTERN = /@\[([^\]]*)\]\(([^)]+)\)/g;
-
-/**
  * Extract the (possibly duplicated) user ids encoded in a comment's mention
  * markup.
  *
- * Each captured id is kept only when it is a syntactically valid ObjectId; a
- * malformed token is skipped instead of being cast later, so a bad mention can
- * never make a query throw. The result is de-duplicated. Existence is checked
- * separately against the User collection.
+ * The token grammar is shared with the client (`shared/mentionToken.js`); this
+ * function owns the data rule: an id is kept only when it is a syntactically
+ * valid ObjectId, so a malformed token is skipped instead of being cast later
+ * and a bad mention can never make a query throw. The result is de-duplicated.
+ * Existence is checked separately against the User collection.
  *
  * @param {string} text The raw comment text (with mention markup).
  * @returns {Array<string>} Distinct, syntactically valid mentioned user ids.
  */
 function extractMentionIds(text) {
-  if (!text) {
-    return [];
-  }
   const ids = new Set();
-  // matchAll needs the global flag and returns a fresh iterator, so concurrent
-  // calls never share regex state.
-  for (const match of text.matchAll(MENTION_PATTERN)) {
-    const id = match[2];
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      ids.add(id);
-    }
-  }
+  parseMentions(text)
+    .filter((segment) => segment.type === "mention")
+    .forEach((segment) => {
+      if (mongoose.Types.ObjectId.isValid(segment.id)) {
+        ids.add(segment.id);
+      }
+    });
   return Array.from(ids);
 }
 

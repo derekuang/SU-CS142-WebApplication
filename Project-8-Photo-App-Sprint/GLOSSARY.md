@@ -28,3 +28,7 @@ entry gives the meaning the code relies on, not a general definition.
   defined in `server/models/photoShapes.js`: the list/detail shape, the
   favorites/mentions summary, the activity thumbnail, the usage entry, and the
   tag. Each carries exactly what its consumer renders.
+- **Mention token** — The `@[display](id)` markup react-mentions writes into a
+  comment's text. Its grammar lives in `shared/mentionToken.js`; the server
+  extracts the ids to validate and store, and the client renders the verified
+  ones as profile links.

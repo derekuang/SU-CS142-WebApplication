@@ -15,7 +15,7 @@
   },
   "scripts": {
     "pretest": "npm install --no-audit --no-fund && node ../loadDatabase.js",
-    "test": "TZ=UTC mocha serverApiTest.js usageApiTest.js mentionsApiTest.js visibilityApiTest.js activityApiTest.js sidebarActivityApiTest.js deletionApiTest.js likesApiTest.js favoritesApiTest.js taggingApiTest.js sessionInputApiTest.js photoVisibilityTest.js passwordApiTest.js",
+    "test": "TZ=UTC mocha serverApiTest.js usageApiTest.js mentionsApiTest.js visibilityApiTest.js activityApiTest.js sidebarActivityApiTest.js deletionApiTest.js likesApiTest.js favoritesApiTest.js taggingApiTest.js sessionInputApiTest.js photoVisibilityTest.js mentionTokenTest.js passwordApiTest.js",
     "cleanup": "node cleanupTestEnvironment.js"
   },
   "author": "Mendel Rosenblum <mendel@cs.stanford.edu> (http://www.stanford.edu/~mendel)",
