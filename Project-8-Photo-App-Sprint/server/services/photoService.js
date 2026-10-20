@@ -1,15 +1,21 @@
 /**
  * Business rules for photos and their comments.
  *
- * Owns response shaping and comment validation, orchestrating the photo
- * repository, but never touches `req`/`res`. Controllers map the returned
- * values to HTTP responses.
+ * Orchestrates the photo repository and the access gate, and owns comment and
+ * tag validation, but never touches `req`/`res`. The public wire shapes live in
+ * `photoShapes`; controllers map the returned values to HTTP responses.
  */
 
 const mongoose = require("mongoose");
 
 const photoRepo = require("../models/photoRepo.js");
 const userRepo = require("../models/userRepo.js");
+const {
+  shapePhotoList,
+  shapePhotoSummary,
+  shapeTag,
+  shapeUsagePhoto,
+} = require("../models/photoShapes.js");
 const activityService = require("./activityService.js");
 const {
   PHOTO_NOT_FOUND,
@@ -76,23 +82,6 @@ function extractMentionIds(text) {
     }
   }
   return Array.from(ids);
-}
-
-/**
- * Order photos the way the like-vote story requires: most liked first, and
- * newest first when two photos have the same number of likes. Sorting is done
- * here, on the server, so the ordering is part of the API's contract rather
- * than something a client controller has to reimplement.
- *
- * @param {object} a A shaped photo (with `likeCount`/`date_time`).
- * @param {object} b A shaped photo (with `likeCount`/`date_time`).
- * @returns {number}
- */
-function byLikesThenNewest(a, b) {
-  if (b.likeCount !== a.likeCount) {
-    return b.likeCount - a.likeCount;
-  }
-  return new Date(b.date_time) - new Date(a.date_time);
 }
 
 /**
@@ -178,94 +167,6 @@ function normalizeRect(rect) {
       height: clippedHeight,
     },
   };
-}
-
-/**
- * Convert one stored tag into the JSON shape the API returns.
- *
- * The raw `user_id` becomes `user` (populated by the repository), the creator
- * id stays private, and `canDelete` tells the client whether to offer the
- * remove control: the photo's owner may remove any tag, and its creator may
- * remove their own.
- *
- * @param {object} tag A stored tag (with `user_id` populated).
- * @param {string} photoOwnerId The photo owner's `_id`.
- * @param {string} viewerId The logged in user's `_id`.
- * @returns {object} The shaped tag.
- */
-function shapeTag(tag, photoOwnerId, viewerId) {
-  const { user_id, tagged_by, __v, ...rest } = tag;
-  return {
-    ...rest,
-    user: user_id || null,
-    canDelete:
-      String(photoOwnerId) === String(viewerId) ||
-      (tagged_by !== undefined && String(tagged_by) === String(viewerId)),
-  };
-}
-
-/**
- * Shape every tag on a photo for the API.
- *
- * @param {Array<object>} tags Stored tags.
- * @param {string} photoOwnerId The photo owner's `_id`.
- * @param {string} viewerId The logged in user's `_id`.
- * @returns {Array<object>} The shaped tags.
- */
-function shapeTags(tags, photoOwnerId, viewerId) {
-  return (tags || []).map((tag) => shapeTag(tag, photoOwnerId, viewerId));
-}
-
-/**
- * Convert Photo documents into the JSON shape the API returns: each comment's
- * populated `user_id` reference becomes a `user` property. This mirrors the
- * transformation the original `/photosOfUser/:id` handler performed.
- *
- * The stored `likes` array is replaced by the two things the view needs - the
- * count and whether the viewer is one of the likers - and the raw list is
- * dropped, so who-liked-what never leaves the server (the same reason the query
- * strips `shared_with`). The same is done for `favorites`: the raw list is
- * dropped and only the viewer's own membership survives, as
- * `favoritedByViewer` (the favorite button's disabled/indicator state). Each
- * tag is shaped into its public form: the tagged user is populated, the creator
- * id is dropped, and `canDelete` reports whether the viewer may remove it. The
- * result is ordered by likes then recency.
- *
- * @param {Array<object>} photos Mongoose Photo documents (comments and tags
- *   populated).
- * @param {string} viewerId The logged in user's `_id`.
- * @returns {Array<object>} Plain photo objects with `comments[].user`,
- *   `tags[]`, `likeCount`, `likedByViewer`, and `favoritedByViewer`, most liked
- *   first.
- */
-function shapePhotos(photos, viewerId) {
-  return photos
-    .map((photo) => {
-      const photoObj = photo.toObject();
-      const likes = photoObj.likes || [];
-      delete photoObj.likes;
-      photoObj.likeCount = likes.length;
-      photoObj.likedByViewer = likes.some(
-        (id) => String(id) === String(viewerId),
-      );
-      const favorites = photoObj.favorites || [];
-      delete photoObj.favorites;
-      photoObj.favoritedByViewer = favorites.some(
-        (id) => String(id) === String(viewerId),
-      );
-      photoObj.tags = shapeTags(photoObj.tags, photoObj.user_id, viewerId);
-      if (photoObj.comments) {
-        photoObj.comments = photoObj.comments.map((comment) => {
-          const { user_id, ...rest } = comment;
-          return {
-            ...rest,
-            user: user_id,
-          };
-        });
-      }
-      return photoObj;
-    })
-    .sort(byLikesThenNewest);
 }
 
 /**
@@ -479,6 +380,7 @@ function addTag(photoId, userId, tagData) {
     if (result.error) {
       return result;
     }
+    const photoOwnerId = result.photo.user_id;
 
     const normalized = normalizeRect(tagData);
     if (normalized.error) {
@@ -515,20 +417,7 @@ function addTag(photoId, userId, tagData) {
               return { error: PHOTO_NOT_FOUND, status: 404 };
             }
             return {
-              tag: {
-                _id: tagId,
-                user: {
-                  _id: taggedUser._id,
-                  first_name: taggedUser.first_name,
-                  last_name: taggedUser.last_name,
-                },
-                x: tag.x,
-                y: tag.y,
-                width: tag.width,
-                height: tag.height,
-                date_time: dateTime,
-                canDelete: true,
-              },
+              tag: shapeTag({ ...tag, user_id: taggedUser }, photoOwnerId, userId),
             };
           },
           () => ({ error: TAG_ADD_FAILED, status: 500 }),
@@ -586,11 +475,27 @@ function deleteTag(photoId, tagId, userId) {
 }
 
 /**
+ * Fetch a user's photos the viewer may see, in the detail shape the photos view
+ * renders.
+ *
+ * The repository selects and visibility-filters; the shape module owns the wire
+ * contract, so this method is only the join between them.
+ *
+ * @param {string} userId The photo owner's `_id`.
+ * @param {string} viewerId The logged in user's `_id`.
+ * @returns {Promise<Array<object>>} The shaped photos, most liked first.
+ */
+function getPhotosOfUser(userId, viewerId) {
+  return photoRepo
+    .findByUser(userId, viewerId)
+    .then((photos) => shapePhotoList(photos, viewerId));
+}
+
+/**
  * Build the logged in user's favorites list for the favorites page.
  *
- * Each entry carries what the list needs: the photo's id, file name, and upload
- * time (the modal caption), plus the owning user's name (to link back to the
- * owner's profile). The photo rows are selected and visibility-filtered by the
+ * Each entry is the shared photo summary: id, file name, upload time, and the
+ * owner's name. The photo rows are selected and visibility-filtered by the
  * repository, so a favorited photo the viewer may no longer see is omitted.
  *
  * @param {string} userId The logged in user's `_id`.
@@ -599,15 +504,7 @@ function deleteTag(photoId, tagId, userId) {
  */
 function getFavorites(userId) {
   return photoRepo.findFavoritesByUser(userId).then((photos) => {
-    return photos.map((photo) => {
-      const obj = photo.toObject();
-      return {
-        _id: obj._id,
-        file_name: obj.file_name,
-        date_time: obj.date_time,
-        owner: obj.user_id,
-      };
-    });
+    return photos.map(shapePhotoSummary);
   });
 }
 
@@ -694,8 +591,8 @@ function deleteComment(photoId, commentId, userId) {
  * photo and their most commented photo.
  *
  * The selection (sorting/counting) is deliberately performed by the repository
- * queries, so this service only orchestrates them and normalizes a missing
- * photo to null.
+ * queries, so this service only orchestrates them, shapes each entry, and
+ * normalizes a missing photo to null.
  *
  * @param {string} userId
  * @param {string} viewerId The logged in user's `_id`; only photos this user may
@@ -708,16 +605,17 @@ function getUsage(userId, viewerId) {
     photoRepo.findMostRecentByUser(userId, viewerId),
     photoRepo.findMostCommentedByUser(userId, viewerId),
   ]).then(([recentPhoto, mostCommented]) => ({
-    recentPhoto: recentPhoto || null,
-    mostCommentedPhoto: mostCommented[0] || null,
+    recentPhoto: recentPhoto ? shapeUsagePhoto(recentPhoto) : null,
+    mostCommentedPhoto: mostCommented[0]
+      ? shapeUsagePhoto(mostCommented[0])
+      : null,
   }));
 }
 
 /**
  * Build the list of photos that mention the given user, as shown on their
- * detail page. Each entry carries everything the view needs: the photo's id,
- * file name, and upload time, plus the owning user's name (to link back to the
- * owner's profile).
+ * detail page. Each entry is the shared photo summary: id, file name, upload
+ * time, and the owner's name.
  *
  * @param {string} userId The mentioned user's `_id`.
  * @param {string} viewerId The logged in user's `_id`; mentions on photos the
@@ -727,20 +625,12 @@ function getUsage(userId, viewerId) {
  */
 function getMentionsOfUser(userId, viewerId) {
   return photoRepo.findPhotosMentioningUser(userId, viewerId).then((photos) => {
-    return photos.map((photo) => {
-      const obj = photo.toObject();
-      return {
-        _id: obj._id,
-        file_name: obj.file_name,
-        date_time: obj.date_time,
-        owner: obj.user_id,
-      };
-    });
+    return photos.map(shapePhotoSummary);
   });
 }
 
 module.exports = {
-  shapePhotos,
+  getPhotosOfUser,
   createPhoto,
   addComment,
   setLike,

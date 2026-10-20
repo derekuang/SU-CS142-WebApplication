@@ -24,3 +24,7 @@ entry gives the meaning the code relies on, not a general definition.
   see it, and `500` when the load failed. Deletion operations open the photo
   without the visibility check, so a creator can still withdraw what they wrote
   after a photo is restricted.
+- **Photo shape** — The public JSON projection of a photo. There are five, all
+  defined in `server/models/photoShapes.js`: the list/detail shape, the
+  favorites/mentions summary, the activity thumbnail, the usage entry, and the
+  tag. Each carries exactly what its consumer renders.

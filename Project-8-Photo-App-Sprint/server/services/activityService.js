@@ -9,6 +9,7 @@
 const activityRepo = require("../models/activityRepo.js");
 const userRepo = require("../models/userRepo.js");
 const ACTIVITY_TYPES = require("../models/activityTypes.js");
+const { shapeActivityPhoto } = require("../models/photoShapes.js");
 
 // The story asks for the 5 most recent activities.
 const DEFAULT_LIMIT = 5;
@@ -104,23 +105,6 @@ function resolveLimit(rawLimit) {
 }
 
 /**
- * Shape a joined photo for the API.
- *
- * @param {object|null|undefined} photo A photo document/row, or a missing one.
- * @returns {object|null} `{ _id, file_name, user_id }` or null.
- */
-function shapePhoto(photo) {
-  if (!photo) {
-    return null;
-  }
-  return {
-    _id: photo._id,
-    file_name: photo.file_name,
-    user_id: photo.user_id,
-  };
-}
-
-/**
  * Turn an aggregation row into the activity shape the API returns.
  *
  * @param {object} activity A row from activityRepo.findRecentVisible.
@@ -142,7 +126,7 @@ function shapeActivity(activity) {
           last_name: actor.last_name,
         }
       : null,
-    photo: shapePhoto(photo),
+    photo: shapeActivityPhoto(photo),
   };
 }
 
@@ -159,7 +143,7 @@ function shapeLatestActivity(activity) {
     _id: activity._id,
     type: activity.type,
     date_time: activity.date_time,
-    photo: shapePhoto(activity.photo),
+    photo: shapeActivityPhoto(activity.photo),
   };
 }
 

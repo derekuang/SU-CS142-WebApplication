@@ -8,23 +8,21 @@
 
 const fs = require("fs");
 
-const photoRepo = require("../models/photoRepo.js");
 const photoService = require("../services/photoService.js");
 
 /**
  * GET /photosOfUser/:id - Return the photos of User (id) the logged in user is
- * allowed to see, with comments shaped into the API's `user` form. Visibility
- * is filtered here, in the query, rather than in the client.
+ * allowed to see, shaped for the photos view. The service filters by visibility
+ * in the query and shapes the result, so the controller only translates.
  */
 function photosOfUser(request, response) {
   const id = request.params.id;
+  const viewerId = request.session.user_id;
 
-  photoRepo
-    .findByUser(id, request.session.user_id)
+  photoService
+    .getPhotosOfUser(id, viewerId)
     .then((photos) => {
-      response
-        .status(200)
-        .send(photoService.shapePhotos(photos, request.session.user_id));
+      response.status(200).send(photos);
     })
     .catch((err) => {
       console.log("Error finding photos:", err);

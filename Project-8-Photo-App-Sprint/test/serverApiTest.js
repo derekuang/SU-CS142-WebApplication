@@ -27,7 +27,7 @@ const userDetailProperties = [
 ];
 // Valid properties of the photo model. The Sprint's like/favorite features add
 // likeCount/likedByViewer/favoritedByViewer, and the tagging story adds `tags`
-// (see photoService.shapePhotos).
+// (see photoShapes.shapePhotoList).
 const photoProperties = [
   "file_name",
   "date_time",
