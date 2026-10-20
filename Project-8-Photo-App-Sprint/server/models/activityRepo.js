@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const Activity = require("../../schema/activity.js");
 const ACTIVITY_TYPES = require("./activityTypes.js");
+const { visibilityClause } = require("./photoVisibility.js");
 
 /**
  * Data-access layer (Model) for the Activity collection.
@@ -76,29 +77,21 @@ function deleteByUserAndPhotos(userId, photoIds) {
  * Build the `$lookup` stage that joins an activity's photo, keeping the photo
  * only when it is visible to the viewer.
  *
- * An activity is visible when it has no photo, or when its photo belongs to the
- * viewer, is public (no `shared_with`), or lists the viewer in `shared_with`.
- * The rule is shared by every activity query so the privacy behaviour can never
- * drift between the feed and the sidebar summary.
+ * The rule comes from `photoVisibility`, so the feed and the sidebar summary
+ * cannot drift from the queries in `photoRepo` or from the write paths. An
+ * activity is visible when it has no photo, or when the clause matches its
+ * photo.
  *
- * @param {mongoose.Types.ObjectId} viewer The logged in user's `_id`.
+ * @param {string} viewerId The logged in user's `_id`.
  * @returns {object} A `$lookup` stage aliasing the result to `photo`.
  */
-function visiblePhotoLookup(viewer) {
+function visiblePhotoLookup(viewerId) {
   return {
     from: "photos",
     let: { activityPhotoId: "$photo_id" },
     pipeline: [
       { $match: { $expr: { $eq: ["$_id", "$$activityPhotoId"] } } },
-      {
-        $match: {
-          $or: [
-            { user_id: viewer },
-            { shared_with: { $exists: false } },
-            { shared_with: viewer },
-          ],
-        },
-      },
+      { $match: visibilityClause(viewerId) },
       { $project: { _id: 1, file_name: 1, user_id: 1 } },
     ],
     as: "photo",
@@ -129,9 +122,8 @@ function visibleActivityMatch() {
  * The result is computed with an aggregation rather than "fetch N then filter",
  * so exactly `limit` visible activities are returned even when some of the
  * newest ones belong to photos the viewer may not see. Each activity's photo is
- * joined in with a pipeline that keeps the photo only when it is visible to the
- * viewer (owner, public, or listed in `shared_with`), mirroring
- * `photoRepo.visibilityFilter`. An activity with no `photo_id`
+ * joined in with a pipeline that keeps the photo only when the shared
+ * visibility clause matches it. An activity with no `photo_id`
  * (register/login/logout) always passes; one whose photo exists but is not
  * visible is dropped.
  *
@@ -151,10 +143,8 @@ function findRecentVisible(viewerId, limit) {
     return Promise.resolve([]);
   }
 
-  const viewer = mongoose.Types.ObjectId(viewerId);
-
   return Activity.aggregate()
-    .lookup(visiblePhotoLookup(viewer))
+    .lookup(visiblePhotoLookup(viewerId))
     .match(visibleActivityMatch())
     .sort({ date_time: -1, _id: -1 })
     .limit(limit)
@@ -193,10 +183,8 @@ function findLatestVisiblePerUser(viewerId) {
     return Promise.resolve([]);
   }
 
-  const viewer = mongoose.Types.ObjectId(viewerId);
-
   return Activity.aggregate()
-    .lookup(visiblePhotoLookup(viewer))
+    .lookup(visiblePhotoLookup(viewerId))
     .match(visibleActivityMatch())
     .sort({ date_time: -1, _id: -1 })
     .group({

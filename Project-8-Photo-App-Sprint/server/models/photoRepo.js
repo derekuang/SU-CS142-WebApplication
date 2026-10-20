@@ -9,31 +9,7 @@
 const mongoose = require("mongoose");
 
 const Photo = require("../../schema/photo.js");
-
-/**
- * Build the extra query clause that limits photos to those a viewer may see.
- *
- * The owner sees every one of their own photos, so no clause is needed (null is
- * returned). Everyone else may only see photos that are public (the
- * `shared_with` field is absent) or that list them in `shared_with`. A present
- * but empty `shared_with` matches neither branch, which is exactly the
- * "owner only" case.
- *
- * @param {string} ownerId The photo owner's `_id`.
- * @param {string} viewerId The logged in user's `_id`.
- * @returns {object|null} A `{ $or }` clause, or null when unrestricted.
- */
-function visibilityFilter(ownerId, viewerId) {
-  if (String(ownerId) === String(viewerId)) {
-    return null;
-  }
-  return {
-    $or: [
-      { shared_with: { $exists: false } },
-      { shared_with: viewerId },
-    ],
-  };
-}
+const { visibilityClause } = require("./photoVisibility.js");
 
 /**
  * Find all photos for a user that the viewer may see, with their comments'
@@ -51,12 +27,7 @@ function visibilityFilter(ownerId, viewerId) {
  * @returns {Promise<Array<object>>} The visible Photo documents.
  */
 function findByUser(userId, viewerId) {
-  const query = { user_id: userId };
-  const filter = visibilityFilter(userId, viewerId);
-  if (filter) {
-    query.$or = filter.$or;
-  }
-  return Photo.find(query)
+  return Photo.find({ user_id: userId, ...visibilityClause(viewerId) })
     .select("-__v -shared_with")
     .populate({
       path: "comments.user_id",
@@ -93,12 +64,7 @@ function findById(photoId) {
  *   photos.
  */
 function findMostRecentByUser(userId, viewerId) {
-  const query = { user_id: userId };
-  const filter = visibilityFilter(userId, viewerId);
-  if (filter) {
-    query.$or = filter.$or;
-  }
-  return Photo.findOne(query)
+  return Photo.findOne({ user_id: userId, ...visibilityClause(viewerId) })
     .sort({ date_time: -1 })
     .select("file_name date_time")
     .exec();
@@ -124,15 +90,10 @@ function findMostCommentedByUser(userId, viewerId) {
     return Promise.resolve([]);
   }
 
-  const match = { user_id: mongoose.Types.ObjectId(userId) };
-  // The aggregation pipeline does not cast for us, so the viewer branch is
-  // built with a real ObjectId (the viewer id always comes from the session).
-  if (String(viewerId) !== String(userId)) {
-    match.$or = [
-      { shared_with: { $exists: false } },
-      { shared_with: mongoose.Types.ObjectId(viewerId) },
-    ];
-  }
+  const match = {
+    user_id: mongoose.Types.ObjectId(userId),
+    ...visibilityClause(viewerId),
+  };
 
   return Photo.aggregate()
     .match(match)
@@ -165,11 +126,7 @@ function findPhotosMentioningUser(userId, viewerId) {
   }
   return Photo.find({
     "comments.mentions": userId,
-    $or: [
-      { user_id: viewerId },
-      { shared_with: { $exists: false } },
-      { shared_with: viewerId },
-    ],
+    ...visibilityClause(viewerId),
   })
     .select("-__v -comments -shared_with")
     .populate({ path: "user_id", select: "first_name last_name" })
@@ -503,10 +460,9 @@ function unfavoritePhoto(photoId, userId) {
 /**
  * Find every photo a user has favorited, limited to what that user may see.
  *
- * This is the query behind the favorites page. The visibility clause is written
- * out in full (owner, public, or shared with the viewer) rather than reusing
- * `visibilityFilter`, because the photos here may belong to different owners -
- * a favorited photo the owner has since restricted away must not appear. Only
+ * This is the query behind the favorites page. The photos here may belong to
+ * different owners, so the shared visibility clause is used unchanged - a
+ * favorited photo the owner has since restricted away must not appear. Only
  * the fields the list needs are selected (id, file name, upload time, owner),
  * with the owner populated with their name; the favorites/likes arrays and
  * comments are never sent to the client.
@@ -521,11 +477,7 @@ function findFavoritesByUser(userId) {
   }
   return Photo.find({
     favorites: userId,
-    $or: [
-      { user_id: userId },
-      { shared_with: { $exists: false } },
-      { shared_with: userId },
-    ],
+    ...visibilityClause(userId),
   })
     .select("file_name date_time user_id")
     .populate({ path: "user_id", select: "first_name last_name" })

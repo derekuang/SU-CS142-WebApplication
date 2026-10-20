@@ -10,6 +10,7 @@ const mongoose = require("mongoose");
 
 const photoRepo = require("../models/photoRepo.js");
 const userRepo = require("../models/userRepo.js");
+const { isVisible } = require("../models/photoVisibility.js");
 const activityService = require("./activityService.js");
 const { removeImage } = require("./photoFiles.js");
 const ACTIVITY_TYPES = require("../models/activityTypes.js");
@@ -266,30 +267,6 @@ function shapePhotos(photos, viewerId) {
 }
 
 /**
- * Decide whether a viewer may see a photo.
- *
- * Mirrors the storage three-state: the owner always may; an absent
- * `shared_with` (public) lets anyone; a present list (including an empty one)
- * only lets the owner and the listed users.
- *
- * @param {object} photo A Mongoose Photo document (with `shared_with`).
- * @param {string} viewerId The logged in user's `_id`.
- * @returns {boolean}
- */
-function canView(photo, viewerId) {
-  if (!photo) {
-    return false;
-  }
-  if (String(photo.user_id) === String(viewerId)) {
-    return true;
-  }
-  if (photo.shared_with === undefined || photo.shared_with === null) {
-    return true;
-  }
-  return photo.shared_with.some((id) => String(id) === String(viewerId));
-}
-
-/**
  * Create a photo for a user, applying the upload's visibility choice.
  *
  * `sharedWithRaw` is the raw `shared_with` multipart field. When it is
@@ -367,7 +344,7 @@ function addComment(photoId, userId, rawText) {
 
   return photoRepo.findById(photoId).then(
     (photo) => {
-      if (!canView(photo, userId)) {
+      if (!isVisible(photo, userId)) {
         return { error: PHOTO_NOT_FOUND };
       }
 
@@ -423,7 +400,7 @@ function setLike(photoId, userId, liked) {
 
   return photoRepo.findById(photoId).then(
     (photo) => {
-      if (!canView(photo, userId)) {
+      if (!isVisible(photo, userId)) {
         return { error: PHOTO_NOT_FOUND, status: 404 };
       }
 
@@ -473,7 +450,7 @@ function setFavorite(photoId, userId, favorited) {
 
   return photoRepo.findById(photoId).then(
     (photo) => {
-      if (!canView(photo, userId)) {
+      if (!isVisible(photo, userId)) {
         return { error: PHOTO_NOT_FOUND, status: 404 };
       }
 
@@ -518,7 +495,7 @@ function addTag(photoId, userId, tagData) {
 
   return photoRepo.findById(photoId).then(
     (photo) => {
-      if (!canView(photo, userId)) {
+      if (!isVisible(photo, userId)) {
         return { error: PHOTO_NOT_FOUND, status: 404 };
       }
 
