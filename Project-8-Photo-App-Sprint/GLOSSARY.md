@@ -18,3 +18,9 @@ entry gives the meaning the code relies on, not a general definition.
 - **Visibility module** — `server/models/photoVisibility.js`, the one place the
   rule is defined. It offers a predicate for an already-loaded photo and a
   query clause for list and aggregation queries.
+- **Photo access** — Opening a photo for an operation.
+  `server/services/photoAccess.js` turns a photo id into the photo or a refusal:
+  `404` when the id is malformed, the photo is missing, or the viewer may not
+  see it, and `500` when the load failed. Deletion operations open the photo
+  without the visibility check, so a creator can still withdraw what they wrote
+  after a photo is restricted.

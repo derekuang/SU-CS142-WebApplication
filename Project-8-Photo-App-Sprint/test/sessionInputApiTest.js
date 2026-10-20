@@ -203,6 +203,26 @@ describe("CS142 Photo App: Session and Input API Tests", function () {
         });
     });
 
+    it("rejects a blank comment", function (done) {
+      axios
+        .post(makeFullUrl("/commentsOfPhoto/" + photo_id), {
+          comment: "   ",
+        }, {
+          headers: {
+            Cookie: sessionCookie
+          }
+        }).then(function () {
+          assert.fail("Expected error not received");
+        }).catch(function (error) {
+          assert.strictEqual(
+            error.response.status,
+            400,
+            "HTTP response status code 400"
+          );
+          done();
+        });
+    });
+
     it("can get tooks photos again", function (done) {
       axios.get(makeFullUrl("/photosOfUser/" + user_id), {
           headers: {

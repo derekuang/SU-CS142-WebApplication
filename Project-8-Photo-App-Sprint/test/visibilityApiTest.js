@@ -250,7 +250,7 @@ describe("CS142 Photo App: Photo Visibility Tests", function () {
               { comment: "not allowed" },
               ripleyCookie
             ),
-            expectStatus(400),
+            expectStatus(404),
             "unlisted user cannot comment on " + photo._id
           );
           await assert.rejects(
@@ -281,7 +281,7 @@ describe("CS142 Photo App: Photo Visibility Tests", function () {
             { comment: "not allowed" },
             ripleyCookie
           ),
-          expectStatus(400)
+          expectStatus(404)
         );
         await assert.rejects(
           postResponse(
@@ -301,6 +301,18 @@ describe("CS142 Photo App: Photo Visibility Tests", function () {
         );
       }
     );
+
+    it("reports a malformed photo id as not found", async function () {
+      await assert.rejects(
+        postResponse(
+          "/commentsOfPhoto/1",
+          { comment: "not allowed" },
+          ripleyCookie
+        ),
+        expectStatus(404),
+        "a malformed photo id cannot be commented on"
+      );
+    });
 
     it("allows a shared user to comment, like, and favorite the photo",
       async function () {

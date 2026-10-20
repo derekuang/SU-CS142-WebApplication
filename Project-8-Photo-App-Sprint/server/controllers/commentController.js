@@ -9,8 +9,9 @@ const photoService = require("../services/photoService.js");
 
 /**
  * POST /commentsOfPhoto/:photo_id - Add the logged in user's comment (from the
- * request body's `comment` property) to the given photo. Blank comments and
- * missing photos produce a 400 with the service-provided message.
+ * request body's `comment` property) to the given photo. A blank comment is a
+ * 400; a missing or invisible photo is the 404 the access gate reports, and a
+ * load failure is a 500.
  */
 function addComment(request, response) {
   const photoId = request.params.photo_id;
@@ -20,7 +21,7 @@ function addComment(request, response) {
     .addComment(photoId, request.session.user_id, commentText)
     .then((result) => {
       if (result.error) {
-        response.status(400).send(result.error);
+        response.status(result.status || 400).send(result.error);
         return;
       }
       response.status(200).send(result.photo);

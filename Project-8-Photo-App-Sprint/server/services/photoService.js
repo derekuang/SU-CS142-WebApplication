@@ -10,14 +10,16 @@ const mongoose = require("mongoose");
 
 const photoRepo = require("../models/photoRepo.js");
 const userRepo = require("../models/userRepo.js");
-const { isVisible } = require("../models/photoVisibility.js");
 const activityService = require("./activityService.js");
+const {
+  PHOTO_NOT_FOUND,
+  openPhoto,
+  openVisiblePhoto,
+} = require("./photoAccess.js");
 const { removeImage } = require("./photoFiles.js");
 const ACTIVITY_TYPES = require("../models/activityTypes.js");
 
 const COMMENT_REQUIRED = "Comment text is required";
-const PHOTO_NOT_FOUND = "Photo not found";
-const PHOTO_LOAD_FAILED = "Unable to load photo";
 const COMMENT_NOT_FOUND = "Comment not found";
 const NOT_PHOTO_OWNER = "Not your photo";
 const NOT_COMMENT_OWNER = "Not your comment";
@@ -329,9 +331,9 @@ function createPhoto({ file_name, userId, sharedWithRaw }) {
  * @param {string} photoId
  * @param {string} userId The commenting user's `_id`.
  * @param {string} rawText The comment text from the request body.
- * @returns {Promise<{photo: object}|{error: string}>} `{photo}` with the saved
- *   photo on success, or `{error}` with the user-facing message on a missing
- *   or blank comment, a missing photo, or a database failure. Any valid
+ * @returns {Promise<{photo: object}|{error: string, status?: number}>} `{photo}`
+ *   with the saved photo on success, or `{error}` with the user-facing message
+ *   on a blank comment, a missing photo, or a database failure. Any valid
  *   mentions encoded in `rawText` are stored on the new comment; mentions of
  *   nonexistent users are silently dropped.
  */
@@ -342,39 +344,37 @@ function addComment(photoId, userId, rawText) {
 
   const mentionedIds = extractMentionIds(rawText);
 
-  return photoRepo.findById(photoId).then(
-    (photo) => {
-      if (!isVisible(photo, userId)) {
-        return { error: PHOTO_NOT_FOUND };
-      }
+  return openVisiblePhoto(photoId, userId).then((result) => {
+    if (result.error) {
+      return result;
+    }
+    const photo = result.photo;
 
-      // Store only mentions that resolve to real users; a mention of a
-      // nonexistent user is dropped (and never crashes the request).
-      return userRepo.findExistingIds(mentionedIds).then((validMentionIds) => {
-        photo.comments.push({
-          comment: rawText.trim(),
-          user_id: userId,
-          mentions: validMentionIds,
-        });
-        // The new subdocument's id lets its ADD_COMMENT activity be deleted
-        // precisely if the comment is later removed.
-        const commentId = photo.comments[photo.comments.length - 1]._id;
-        return photoRepo
-          .save(photo)
-          .then((updatedPhoto) => {
-            activityService.record(
-              ACTIVITY_TYPES.ADD_COMMENT,
-              userId,
-              photoId,
-              commentId,
-            );
-            return { photo: updatedPhoto };
-          })
-          .catch(() => ({ error: COMMENT_ADD_FAILED }));
+    // Store only mentions that resolve to real users; a mention of a
+    // nonexistent user is dropped (and never crashes the request).
+    return userRepo.findExistingIds(mentionedIds).then((validMentionIds) => {
+      photo.comments.push({
+        comment: rawText.trim(),
+        user_id: userId,
+        mentions: validMentionIds,
       });
-    },
-    () => ({ error: PHOTO_LOAD_FAILED }),
-  );
+      // The new subdocument's id lets its ADD_COMMENT activity be deleted
+      // precisely if the comment is later removed.
+      const commentId = photo.comments[photo.comments.length - 1]._id;
+      return photoRepo
+        .save(photo)
+        .then((updatedPhoto) => {
+          activityService.record(
+            ACTIVITY_TYPES.ADD_COMMENT,
+            userId,
+            photoId,
+            commentId,
+          );
+          return { photo: updatedPhoto };
+        })
+        .catch(() => ({ error: COMMENT_ADD_FAILED }));
+    });
+  });
 }
 
 /**
@@ -394,37 +394,30 @@ function addComment(photoId, userId, rawText) {
  *   status: number}>} `{likeCount, likedByViewer}` on success.
  */
 function setLike(photoId, userId, liked) {
-  if (!mongoose.Types.ObjectId.isValid(photoId)) {
-    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
-  }
+  return openVisiblePhoto(photoId, userId).then((result) => {
+    if (result.error) {
+      return result;
+    }
 
-  return photoRepo.findById(photoId).then(
-    (photo) => {
-      if (!isVisible(photo, userId)) {
-        return { error: PHOTO_NOT_FOUND, status: 404 };
-      }
+    const update = liked
+      ? photoRepo.likePhoto(photoId, userId)
+      : photoRepo.unlikePhoto(photoId, userId);
 
-      const update = liked
-        ? photoRepo.likePhoto(photoId, userId)
-        : photoRepo.unlikePhoto(photoId, userId);
-
-      return update
-        .then((updated) => {
-          if (liked) {
-            activityService.record(ACTIVITY_TYPES.LIKE, userId, photoId);
-          } else {
-            activityService.removeLike(userId, photoId);
-          }
-          const likes = (updated && updated.likes) || [];
-          return {
-            likeCount: likes.length,
-            likedByViewer: likes.some((id) => String(id) === String(userId)),
-          };
-        })
-        .catch(() => ({ error: LIKE_FAILED, status: 500 }));
-    },
-    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
-  );
+    return update
+      .then((updated) => {
+        if (liked) {
+          activityService.record(ACTIVITY_TYPES.LIKE, userId, photoId);
+        } else {
+          activityService.removeLike(userId, photoId);
+        }
+        const likes = (updated && updated.likes) || [];
+        return {
+          likeCount: likes.length,
+          likedByViewer: likes.some((id) => String(id) === String(userId)),
+        };
+      })
+      .catch(() => ({ error: LIKE_FAILED, status: 500 }));
+  });
 }
 
 /**
@@ -444,33 +437,26 @@ function setLike(photoId, userId, liked) {
  *   number}>} `{favoritedByViewer}` on success.
  */
 function setFavorite(photoId, userId, favorited) {
-  if (!mongoose.Types.ObjectId.isValid(photoId)) {
-    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
-  }
+  return openVisiblePhoto(photoId, userId).then((result) => {
+    if (result.error) {
+      return result;
+    }
 
-  return photoRepo.findById(photoId).then(
-    (photo) => {
-      if (!isVisible(photo, userId)) {
-        return { error: PHOTO_NOT_FOUND, status: 404 };
-      }
+    const update = favorited
+      ? photoRepo.favoritePhoto(photoId, userId)
+      : photoRepo.unfavoritePhoto(photoId, userId);
 
-      const update = favorited
-        ? photoRepo.favoritePhoto(photoId, userId)
-        : photoRepo.unfavoritePhoto(photoId, userId);
-
-      return update
-        .then((updated) => {
-          const favorites = (updated && updated.favorites) || [];
-          return {
-            favoritedByViewer: favorites.some(
-              (id) => String(id) === String(userId),
-            ),
-          };
-        })
-        .catch(() => ({ error: FAVORITE_FAILED, status: 500 }));
-    },
-    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
-  );
+    return update
+      .then((updated) => {
+        const favorites = (updated && updated.favorites) || [];
+        return {
+          favoritedByViewer: favorites.some(
+            (id) => String(id) === String(userId),
+          ),
+        };
+      })
+      .catch(() => ({ error: FAVORITE_FAILED, status: 500 }));
+  });
 }
 
 /**
@@ -489,75 +475,68 @@ function setFavorite(photoId, userId, favorited) {
  *   created tag, or a user-facing error with its HTTP status.
  */
 function addTag(photoId, userId, tagData) {
-  if (!mongoose.Types.ObjectId.isValid(photoId)) {
-    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
-  }
+  return openVisiblePhoto(photoId, userId).then((result) => {
+    if (result.error) {
+      return result;
+    }
 
-  return photoRepo.findById(photoId).then(
-    (photo) => {
-      if (!isVisible(photo, userId)) {
-        return { error: PHOTO_NOT_FOUND, status: 404 };
-      }
+    const normalized = normalizeRect(tagData);
+    if (normalized.error) {
+      return { error: normalized.error, status: 400 };
+    }
 
-      const normalized = normalizeRect(tagData);
-      if (normalized.error) {
-        return { error: normalized.error, status: 400 };
-      }
+    const taggedUserId = tagData && tagData.user_id;
+    if (!mongoose.Types.ObjectId.isValid(taggedUserId)) {
+      return { error: TAG_USER_NOT_FOUND, status: 400 };
+    }
 
-      const taggedUserId = tagData && tagData.user_id;
-      if (!mongoose.Types.ObjectId.isValid(taggedUserId)) {
-        return { error: TAG_USER_NOT_FOUND, status: 400 };
-      }
+    return userRepo.findById(taggedUserId, "first_name last_name").then(
+      (taggedUser) => {
+        if (!taggedUser) {
+          return { error: TAG_USER_NOT_FOUND, status: 400 };
+        }
 
-      return userRepo.findById(taggedUserId, "first_name last_name").then(
-        (taggedUser) => {
-          if (!taggedUser) {
-            return { error: TAG_USER_NOT_FOUND, status: 400 };
-          }
+        const tagId = new mongoose.Types.ObjectId();
+        const dateTime = new Date();
+        const tag = {
+          _id: tagId,
+          user_id: mongoose.Types.ObjectId(taggedUserId),
+          tagged_by: mongoose.Types.ObjectId(userId),
+          x: normalized.rect.x,
+          y: normalized.rect.y,
+          width: normalized.rect.width,
+          height: normalized.rect.height,
+          date_time: dateTime,
+        };
 
-          const tagId = new mongoose.Types.ObjectId();
-          const dateTime = new Date();
-          const tag = {
-            _id: tagId,
-            user_id: mongoose.Types.ObjectId(taggedUserId),
-            tagged_by: mongoose.Types.ObjectId(userId),
-            x: normalized.rect.x,
-            y: normalized.rect.y,
-            width: normalized.rect.width,
-            height: normalized.rect.height,
-            date_time: dateTime,
-          };
-
-          return photoRepo.addTag(photoId, tag).then(
-            (result) => {
-              if (!result || result.matchedCount === 0) {
-                return { error: PHOTO_NOT_FOUND, status: 404 };
-              }
-              return {
-                tag: {
-                  _id: tagId,
-                  user: {
-                    _id: taggedUser._id,
-                    first_name: taggedUser.first_name,
-                    last_name: taggedUser.last_name,
-                  },
-                  x: tag.x,
-                  y: tag.y,
-                  width: tag.width,
-                  height: tag.height,
-                  date_time: dateTime,
-                  canDelete: true,
+        return photoRepo.addTag(photoId, tag).then(
+          (updateResult) => {
+            if (!updateResult || updateResult.matchedCount === 0) {
+              return { error: PHOTO_NOT_FOUND, status: 404 };
+            }
+            return {
+              tag: {
+                _id: tagId,
+                user: {
+                  _id: taggedUser._id,
+                  first_name: taggedUser.first_name,
+                  last_name: taggedUser.last_name,
                 },
-              };
-            },
-            () => ({ error: TAG_ADD_FAILED, status: 500 }),
-          );
-        },
-        () => ({ error: TAG_USER_NOT_FOUND, status: 400 }),
-      );
-    },
-    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
-  );
+                x: tag.x,
+                y: tag.y,
+                width: tag.width,
+                height: tag.height,
+                date_time: dateTime,
+                canDelete: true,
+              },
+            };
+          },
+          () => ({ error: TAG_ADD_FAILED, status: 500 }),
+        );
+      },
+      () => ({ error: TAG_USER_NOT_FOUND, status: 400 }),
+    );
+  });
 }
 
 /**
@@ -575,40 +554,35 @@ function addTag(photoId, userId, tagData) {
  * @returns {Promise<{ok: true}|{error: string, status: number}>}
  */
 function deleteTag(photoId, tagId, userId) {
-  if (!mongoose.Types.ObjectId.isValid(photoId)) {
-    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
-  }
+  return openPhoto(photoId).then((result) => {
+    if (result.error) {
+      return result;
+    }
+    const photo = result.photo;
 
-  return photoRepo.findById(photoId).then(
-    (photo) => {
-      if (!photo) {
-        return { error: PHOTO_NOT_FOUND, status: 404 };
-      }
-      if (!mongoose.Types.ObjectId.isValid(tagId)) {
-        return { error: TAG_NOT_FOUND, status: 404 };
-      }
+    if (!mongoose.Types.ObjectId.isValid(tagId)) {
+      return { error: TAG_NOT_FOUND, status: 404 };
+    }
 
-      const tag = photo.tags ? photo.tags.id(tagId) : null;
-      if (!tag) {
-        return { error: TAG_NOT_FOUND, status: 404 };
-      }
+    const tag = photo.tags ? photo.tags.id(tagId) : null;
+    if (!tag) {
+      return { error: TAG_NOT_FOUND, status: 404 };
+    }
 
-      const isOwner = String(photo.user_id) === String(userId);
-      const isCreator =
-        tag.tagged_by !== undefined &&
-        tag.tagged_by !== null &&
-        String(tag.tagged_by) === String(userId);
-      if (!isOwner && !isCreator) {
-        return { error: NOT_TAG_OWNER, status: 403 };
-      }
+    const isOwner = String(photo.user_id) === String(userId);
+    const isCreator =
+      tag.tagged_by !== undefined &&
+      tag.tagged_by !== null &&
+      String(tag.tagged_by) === String(userId);
+    if (!isOwner && !isCreator) {
+      return { error: NOT_TAG_OWNER, status: 403 };
+    }
 
-      return photoRepo.deleteTag(photoId, tagId).then(
-        () => ({ ok: true }),
-        () => ({ error: TAG_DELETE_FAILED, status: 500 }),
-      );
-    },
-    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
-  );
+    return photoRepo.deleteTag(photoId, tagId).then(
+      () => ({ ok: true }),
+      () => ({ error: TAG_DELETE_FAILED, status: 500 }),
+    );
+  });
 }
 
 /**
@@ -651,30 +625,25 @@ function getFavorites(userId) {
  * @returns {Promise<{ok: true}|{error: string, status: number}>}
  */
 function deletePhoto(photoId, userId) {
-  if (!mongoose.Types.ObjectId.isValid(photoId)) {
-    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
-  }
+  return openPhoto(photoId).then((result) => {
+    if (result.error) {
+      return result;
+    }
+    const photo = result.photo;
 
-  return photoRepo.findById(photoId).then(
-    (photo) => {
-      if (!photo) {
-        return { error: PHOTO_NOT_FOUND, status: 404 };
-      }
-      if (String(photo.user_id) !== String(userId)) {
-        return { error: NOT_PHOTO_OWNER, status: 403 };
-      }
+    if (String(photo.user_id) !== String(userId)) {
+      return { error: NOT_PHOTO_OWNER, status: 403 };
+    }
 
-      const fileName = photo.file_name;
-      return activityService
-        .removeByPhotoId(photoId)
-        .then(() => photoRepo.deleteById(photoId))
-        .then(() => {
-          removeImage(fileName);
-          return { ok: true };
-        });
-    },
-    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
-  );
+    const fileName = photo.file_name;
+    return activityService
+      .removeByPhotoId(photoId)
+      .then(() => photoRepo.deleteById(photoId))
+      .then(() => {
+        removeImage(fileName);
+        return { ok: true };
+      });
+  });
 }
 
 /**
@@ -696,33 +665,28 @@ function deletePhoto(photoId, userId) {
  * @returns {Promise<{ok: true}|{error: string, status: number}>}
  */
 function deleteComment(photoId, commentId, userId) {
-  if (!mongoose.Types.ObjectId.isValid(photoId)) {
-    return Promise.resolve({ error: PHOTO_NOT_FOUND, status: 404 });
-  }
+  return openPhoto(photoId).then((result) => {
+    if (result.error) {
+      return result;
+    }
+    const photo = result.photo;
 
-  return photoRepo.findById(photoId).then(
-    (photo) => {
-      if (!photo) {
-        return { error: PHOTO_NOT_FOUND, status: 404 };
-      }
-      if (!mongoose.Types.ObjectId.isValid(commentId)) {
-        return { error: COMMENT_NOT_FOUND, status: 404 };
-      }
-      const comment = photo.comments.id(commentId);
-      if (!comment) {
-        return { error: COMMENT_NOT_FOUND, status: 404 };
-      }
-      if (String(comment.user_id) !== String(userId)) {
-        return { error: NOT_COMMENT_OWNER, status: 403 };
-      }
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return { error: COMMENT_NOT_FOUND, status: 404 };
+    }
+    const comment = photo.comments.id(commentId);
+    if (!comment) {
+      return { error: COMMENT_NOT_FOUND, status: 404 };
+    }
+    if (String(comment.user_id) !== String(userId)) {
+      return { error: NOT_COMMENT_OWNER, status: 403 };
+    }
 
-      return activityService
-        .removeByCommentId(commentId)
-        .then(() => photoRepo.deleteComment(photoId, commentId))
-        .then(() => ({ ok: true }));
-    },
-    () => ({ error: PHOTO_LOAD_FAILED, status: 500 }),
-  );
+    return activityService
+      .removeByCommentId(commentId)
+      .then(() => photoRepo.deleteComment(photoId, commentId))
+      .then(() => ({ ok: true }));
+  });
 }
 
 /**
